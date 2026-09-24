@@ -472,12 +472,21 @@ function WorkspaceView({
           </Button>
         )}
         {version && version.status === 'IN_REVIEW' && w.rights.publish && (
-          <Button variant="outline" disabled={!w.allowed.return} onClick={() => void returnDraft()}>
+          <Button
+            variant="outline"
+            pending={w.writing === 'return'}
+            disabled={!w.allowed.return}
+            onClick={() => void returnDraft()}
+          >
             {s.returnToDraft}
           </Button>
         )}
         {primary && (
-          <Button disabled={!primary.enabled} onClick={runPrimary}>
+          <Button
+            pending={w.writing === primary.kind}
+            disabled={!primary.enabled}
+            onClick={runPrimary}
+          >
             {primary.label}
           </Button>
         )}
@@ -485,7 +494,13 @@ function WorkspaceView({
         {version && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="icon" aria-label={t.moreActions}>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={t.moreActions}
+                pending={w.writing === 'remove'}
+              >
                 <MoreHorizontalIcon aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
@@ -593,6 +608,7 @@ function WorkspaceView({
           <>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
               {state && <StatusPill tone={state.tone}>{state.label}</StatusPill>}
+              {w.writing === 'create' && <LoadingState />}
               {!w.viewingPublished &&
                 w.unpublished > 0 &&
                 pill(

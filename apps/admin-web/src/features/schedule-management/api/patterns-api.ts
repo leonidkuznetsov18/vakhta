@@ -18,7 +18,4 @@ export const patternsApi = {
       }),
     );
   },
-  async remove(id: string) {
-    await apiFetch(`${root}/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  },
 };

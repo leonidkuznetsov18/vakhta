@@ -329,6 +329,7 @@ export function ResourceSchedule({
                       { onSuccess: () => setEditor(null) },
                     )
                   }
+                  creatingSlot={slots.create.isPending}
                 />
               ) : selectedSlot ? (
                 <SlotDetails

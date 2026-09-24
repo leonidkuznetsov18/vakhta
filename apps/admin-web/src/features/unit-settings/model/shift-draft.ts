@@ -8,8 +8,8 @@ import {
   type TemplateHoursIssue,
 } from '@vakhta/domain';
 
-/** Lengths a shift is most often planned with; each sets the end from the start. */
-export const LENGTH_PRESETS = [6, 8, 12, 24] as const;
+/** Lengths a shift is most often planned with; each sets the end from the start. A full day is a type. */
+export const LENGTH_PRESETS = [6, 8, 12] as const;
 
 export interface ShiftDraft {
   readonly name: string;

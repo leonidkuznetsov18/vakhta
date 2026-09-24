@@ -179,6 +179,7 @@ function DeliveryDetail({ detail }: { detail: CommunicationDetail }) {
                 type="button"
                 variant="outline"
                 className="h-auto min-h-11 max-w-full whitespace-normal break-all text-left"
+                pending={link.isPending && link.variables.id === file.id}
                 onClick={() => {
                   const target = window.open('about:blank', '_blank');
                   if (target) target.opener = null;
@@ -237,7 +238,7 @@ function DeliveryDetail({ detail }: { detail: CommunicationDetail }) {
           {detail.closedAt ? (
             <p className="text-sm text-muted-foreground">{t.closed}</p>
           ) : (
-            <Button variant="outline" disabled={close.isPending} onClick={() => close.mutate()}>
+            <Button variant="outline" pending={close.isPending} onClick={() => close.mutate()}>
               {t.closeQuestionnaire}
             </Button>
           )}
@@ -249,7 +250,7 @@ function DeliveryDetail({ detail }: { detail: CommunicationDetail }) {
           <AlertCircleIcon />
           <AlertTitle>{t.retryWarning}</AlertTitle>
           <div className="col-start-2 mt-2 flex gap-2">
-            <Button size="sm" disabled={retry.isPending} onClick={() => retry.mutate(retryId)}>
+            <Button size="sm" pending={retry.isPending} onClick={() => retry.mutate(retryId)}>
               {t.confirmRetry}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setRetryId(null)}>
@@ -286,6 +287,7 @@ function DeliveryDetail({ detail }: { detail: CommunicationDetail }) {
                         variant="outline"
                         size="sm"
                         disabled={retry.isPending}
+                        pending={retry.isPending && retry.variables === part.id}
                         onClick={() =>
                           part.status === 'UNKNOWN' ? setRetryId(part.id) : retry.mutate(part.id)
                         }

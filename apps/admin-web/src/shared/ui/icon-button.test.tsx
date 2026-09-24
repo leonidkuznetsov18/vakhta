@@ -28,6 +28,26 @@ describe('IconButton semantics', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
+  it('shows its own running operation in place of the icon and stays inert', () => {
+    const onClick = vi.fn();
+    render(
+      <IconButton
+        icon={SquareIcon}
+        size="icon"
+        label="Delete"
+        tooltip="Delete the region"
+        pending
+        onClick={onClick}
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'Delete' });
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(button).toHaveProperty('disabled', true);
+    expect(button.querySelector('[data-slot=spinner]')).not.toBeNull();
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it('keeps disabled icon actions inert with a focusable explanation', async () => {
     const onClick = vi.fn();
     render(

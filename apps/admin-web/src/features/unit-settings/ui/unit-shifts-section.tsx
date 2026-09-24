@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDownIcon, LockIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { ChevronRightIcon, LockIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { templateDisplayName, templateMinutes } from '@vakhta/domain';
 import type { OrgSnapshot, ShiftTemplateView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
@@ -12,7 +12,6 @@ import { InfoTip } from '@/components/app/info-tip';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { useConfirm, type ConfirmOptions } from '@/components/app/confirm-dialog';
 import { IconButton } from '@/shared/ui/icon-button';
-import { LoadingState } from '@/shared/ui/loading-state';
 import { formatDuration } from '@/lib/format';
 import { notifySuccess } from '@/lib/toast';
 import { readError } from '@/errors';
@@ -91,6 +90,7 @@ export function UnitShiftsSection({
           <OwnShiftActions
             shift={shift}
             busy={save.isPending || remove.isPending}
+            deleting={remove.isPending && remove.variables.id === shift.id}
             onEdit={() => start({ kind: 'edit', shift })}
             onDelete={() => void askDelete(shift)}
           />
@@ -104,7 +104,6 @@ export function UnitShiftsSection({
         canAdd={editable && own.length > 0 && !creating}
         onAdd={() => start({ kind: 'new' })}
       />
-      {templates.isPending && <LoadingState />}
       <QueryFeedback query={templates} />
       <Feedback error={readError(remove.error)} />
       {creating && form(null)}
@@ -209,11 +208,13 @@ function EmptyShifts({
 function OwnShiftActions({
   shift,
   busy,
+  deleting,
   onEdit,
   onDelete,
 }: {
   shift: ShiftTemplateView;
   busy: boolean;
+  deleting: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -236,6 +237,7 @@ function OwnShiftActions({
         variant="ghost"
         size="icon-sm"
         disabled={busy}
+        pending={deleting}
         onClick={onDelete}
       />
     </>
@@ -247,9 +249,9 @@ function StandardShifts({ shifts }: { shifts: readonly ShiftTemplateView[] }) {
   return (
     <Collapsible>
       <CollapsibleTrigger className="group flex items-center gap-1 rounded-sm py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-        <ChevronDownIcon
+        <ChevronRightIcon
           aria-hidden="true"
-          className="size-4 transition-transform group-data-[state=open]:rotate-180"
+          className="size-4 transition-transform group-data-[state=open]:rotate-90"
         />
         {t.defaultsTitle}
       </CollapsibleTrigger>

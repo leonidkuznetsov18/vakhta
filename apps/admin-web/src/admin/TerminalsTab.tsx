@@ -283,7 +283,7 @@ export function TerminalsTab({ org }: Props) {
                 <Button type="button" variant="outline" onClick={() => setCreating(false)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy || isBlank(name)}>
+                <Button type="submit" pending={register.isPending} disabled={busy || isBlank(name)}>
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -325,6 +325,7 @@ export function TerminalsTab({ org }: Props) {
                     size="sm"
                     className="ml-auto"
                     disabled={busy}
+                    pending={pair.isPending}
                     onClick={() => issue(openTerminal)}
                   >
                     <KeyRoundIcon aria-hidden="true" />
@@ -378,6 +379,7 @@ export function TerminalsTab({ org }: Props) {
             label: tr.pair,
             icon: KeyRoundIcon,
             disabled: busy,
+            pending: pair.isPending && pair.variables.id === term.id,
             onSelect: () => issue(term),
           },
           {
@@ -392,6 +394,7 @@ export function TerminalsTab({ org }: Props) {
             label: term.status === 'ACTIVE' ? tr.disable : tr.enable,
             icon: PowerIcon,
             disabled: busy,
+            pending: setStatus.isPending && setStatus.variables.term.id === term.id,
             destructive: term.status === 'ACTIVE',
             separator: true,
             onSelect: () => void toggle(term),
@@ -401,6 +404,7 @@ export function TerminalsTab({ org }: Props) {
             label: tr.delete,
             icon: Trash2Icon,
             disabled: busy,
+            pending: drop.isPending && drop.variables.term.id === term.id,
             destructive: true,
             onSelect: () => void remove(term),
           },
@@ -542,8 +546,8 @@ function EditTerminalForm({
           </Button>
           <Button
             type="submit"
+            pending={busy}
             disabled={
-              busy ||
               isBlank(name) ||
               isUnchanged(
                 { name: name.trim(), siteId, checkpoint },

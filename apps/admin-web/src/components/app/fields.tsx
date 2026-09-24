@@ -195,7 +195,7 @@ function ComboboxField({
                 value={query}
                 onValueChange={setQuery}
               />
-              <CommandList aria-label={label}>
+              <CommandList label={label}>
                 <CommandEmpty>{t.noResults}</CommandEmpty>
                 {creatable && (
                   // Its own always-mounted group: cmdk hides a group whose items matched nothing.

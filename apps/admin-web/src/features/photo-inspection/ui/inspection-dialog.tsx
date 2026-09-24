@@ -333,7 +333,6 @@ function InspectionSession({
         review: editor.store.getState().review,
         durationMs: editor.durationMs(),
       }),
-    meta: localActivity,
     retry: false,
     onMutate: () => editor.lock(),
     onSettled: () => editor.unlock(),
@@ -346,7 +345,6 @@ function InspectionSession({
   });
   const analyze = useMutation({
     mutationFn: () => inspectionApi.analyze(id, editor.analysisRequest()),
-    meta: localActivity,
     retry: false,
     onSettled: async () => {
       await client.cancelQueries({ queryKey: ['photo-analysis-limits'] });
@@ -371,7 +369,6 @@ function InspectionSession({
       : null;
   const createObject = useMutation({
     mutationFn: (name: string) => inspectionApi.createObject({ name }),
-    meta: localActivity,
     retry: false,
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: photoObjectsKey });
@@ -380,7 +377,6 @@ function InspectionSession({
   const rate = useMutation({
     mutationFn: ({ runId, rating }: { runId: string; rating: AiFeedbackRating }) =>
       inspectionApi.rateRun(id, runId, { rating }),
-    meta: localActivity,
     retry: false,
     onSuccess: (view) => {
       client.setQueryData(inspectionKey(id), view);
@@ -389,7 +385,6 @@ function InspectionSession({
   });
   const exportReview = useMutation({
     mutationFn: () => inspectionApi.export(id),
-    meta: localActivity,
     retry: false,
     onSuccess: (value) => downloadJson(value, id.mediaId),
   });
@@ -484,11 +479,8 @@ function InspectionSession({
           icon={DownloadIcon}
           label={t.export}
           tooltip={`${t.export}. ${t.hints.export}`}
-          disabled={
-            hasReviewChanges(state) ||
-            latest.review.status === 'UNREVIEWED' ||
-            exportReview.isPending
-          }
+          pending={exportReview.isPending}
+          disabled={hasReviewChanges(state) || latest.review.status === 'UNREVIEWED'}
           onClick={() => exportReview.mutate()}
         >
           <span className="sr-only">{t.export}</span>
@@ -642,6 +634,7 @@ function InspectionSession({
           <PredictionPanel
             latest={latest}
             editor={editor}
+            rating={rate.isPending}
             onRate={(runId, rating) => rate.mutate({ runId, rating })}
             disabled={busy || !initial.canEdit || state.imageStatus !== 'ready'}
           />

@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { QueryFeedback } from '@/components/app/query-feedback';
-import { LoadingState } from '@/shared/ui/loading-state';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useSectionEditor } from '../model/use-section-editor';
@@ -127,12 +126,8 @@ export function SectionEditor({
             </section>
           )}
           <div className="flex flex-wrap gap-3 sm:col-span-2">
-            <Button type="submit" disabled={!changed || mutation.isPending || conflict}>
-              {mutation.isPending ? (
-                <LoadingState label={messages(currentLocale()).ui.common.saving} />
-              ) : (
-                t.save
-              )}
+            <Button type="submit" pending={mutation.isPending} disabled={!changed || conflict}>
+              {t.save}
             </Button>
             <Button
               type="button"

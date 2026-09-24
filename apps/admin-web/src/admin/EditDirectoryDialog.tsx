@@ -237,7 +237,7 @@ function DirectoryForm({ edit, org, onClose, onSaved }: FormProps) {
           <Button type="button" variant="outline" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button type="submit" disabled={busy || unchanged}>
+          <Button type="submit" pending={busy} disabled={unchanged}>
             {all.ui.common.save}
           </Button>
         </DialogFooter>

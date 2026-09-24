@@ -1,7 +1,6 @@
 import { tenantConfig } from '@/shared/config/tenant';
 import { QueryActivity } from '@/shared/ui/query-activity';
 import { MobileNavigation, MobileNavigationClose } from '@/features/mobile-navigation';
-import { MutationActivity } from '@/components/app/query-feedback';
 import {
   ActivityIcon,
   AlertTriangleIcon,
@@ -354,7 +353,6 @@ export function PanelShell() {
                 </div>
               </header>
               <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
-                <MutationActivity />
                 <Outlet />
               </div>
             </SidebarInset>

@@ -36,7 +36,7 @@ describe('shift draft', () => {
   it('suggests the type from the hours until the administrator picks one', () => {
     const night = withHours(NEW_SHIFT, '22:00', '06:00');
     expect(night.period).toBe(ShiftPeriod.NIGHT);
-    expect(withLength(night, 24)).toMatchObject({
+    expect(withHours(night, '22:00', '22:00')).toMatchObject({
       localEnd: '22:00',
       period: ShiftPeriod.FULL_DAY,
     });

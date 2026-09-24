@@ -100,6 +100,23 @@ describe('UnitShiftsSection', () => {
     });
   });
 
+  it('opens and closes the time list from the clock and fills the chosen time', async () => {
+    mockApi([DAY]);
+    render(<UnitShiftsSection unit={unit} editable />);
+    fireEvent.click(await screen.findByRole('button', { name: t.createFirst }));
+    const [clock] = screen.getAllByRole('button', { name: t.chooseTime });
+    if (!clock) throw new Error('start clock missing');
+    fireEvent.click(clock);
+    const list = await screen.findByRole('listbox', { name: t.chooseTime });
+    fireEvent.click(within(list).getByRole('option', { name: '05:30' }));
+    expect((screen.getByLabelText(t.start) as HTMLInputElement).value).toBe('05:30');
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    fireEvent.click(clock);
+    await screen.findByRole('listbox', { name: t.chooseTime });
+    fireEvent.click(clock);
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+  });
+
   it('saves an edit only after a change and sends the revision it edited', async () => {
     const calls = mockApi([DAY, shift({})]);
     render(<UnitShiftsSection unit={unit} editable />);

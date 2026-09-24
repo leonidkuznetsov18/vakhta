@@ -7,7 +7,6 @@ import { reviewPhotos } from './review-fixtures';
 import { apiFetch } from '@/api';
 import { MediaLinkView } from '@vakhta/contracts';
 import { QueryActivity } from '@/shared/ui/query-activity';
-import { MutationActivity } from '@/components/app/query-feedback';
 import '@/index.css';
 
 if (!import.meta.env.DEV) throw new Error('Photo fixture is development-only');
@@ -33,12 +32,11 @@ function Fixture() {
         className="flex h-14 items-center justify-between border-b px-4"
       >
         <h1>Photos</h1>
-        <QueryActivity />
+        <div data-testid="page-activity">
+          <QueryActivity />
+        </div>
       </header>
       <main className="flex flex-col gap-6 p-4 md:p-6">
-        <div data-testid="page-activity">
-          <MutationActivity />
-        </div>
         <div data-testid="page-content">
           <button onClick={() => open(reviewPhotos[0])}>Inspect photos</button>
           <button onClick={() => setLightbox(true)}>View gallery</button>

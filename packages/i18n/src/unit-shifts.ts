@@ -23,6 +23,8 @@ export interface UnitShiftsMessages {
   periodHint: string;
   periods: Record<ShiftPeriod, string>;
   name: string;
+  namePlaceholder: string;
+  chooseTime: string;
   preview: string;
   create: string;
   save: string;
@@ -70,7 +72,9 @@ export const unitShiftsUK: UnitShiftsMessages = {
   periodHint:
     'Визначається за часом автоматично. Від типу залежить колір на Графіку і як зміна називається в боті.',
   periods: { DAY: 'День', NIGHT: 'Ніч', FULL_DAY: 'Доба' },
-  name: 'Назва',
+  name: 'Назва зміни',
+  namePlaceholder: 'Наприклад, Ранкова',
+  chooseTime: 'Вибрати час',
   preview: 'На Графіку',
   create: 'Створити зміну',
   save: 'Зберегти',
@@ -130,7 +134,9 @@ export const unitShiftsEN: UnitShiftsMessages = {
   periodHint:
     'Set automatically from the hours. The type decides the colour on the Schedule and how the bot names the shift.',
   periods: { DAY: 'Day', NIGHT: 'Night', FULL_DAY: 'Full day' },
-  name: 'Name',
+  name: 'Shift name',
+  namePlaceholder: 'For example, Morning',
+  chooseTime: 'Choose time',
   preview: 'On the Schedule',
   create: 'Create shift',
   save: 'Save',
@@ -190,7 +196,9 @@ export const unitShiftsRU: UnitShiftsMessages = {
   periodHint:
     'Определяется по времени автоматически. От типа зависит цвет в Графике и как смена называется в боте.',
   periods: { DAY: 'День', NIGHT: 'Ночь', FULL_DAY: 'Сутки' },
-  name: 'Название',
+  name: 'Название смены',
+  namePlaceholder: 'Например, Утренняя',
+  chooseTime: 'Выбрать время',
   preview: 'В Графике',
   create: 'Создать смену',
   save: 'Сохранить',

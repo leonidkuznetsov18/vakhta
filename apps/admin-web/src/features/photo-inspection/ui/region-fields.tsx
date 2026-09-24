@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { IconButton } from '@/shared/ui/icon-button';
+import { LoadingState } from '@/shared/ui/loading-state';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +51,7 @@ export function RegionFields({
   onCreateObject?: ((name: string) => Promise<PhotoObjectView>) | undefined;
 }) {
   const [touched, setTouched] = useState(false);
+  const [creating, setCreating] = useState(false);
   const unnamed =
     !annotation.objectId && !annotation.objectName?.trim() && !annotation.comment.trim();
   const others = objects.filter((object) => !rules.some((rule) => rule.objectId === object.id));
@@ -188,22 +190,27 @@ export function RegionFields({
                 { value: OTHER, label: t.objectOther },
               ]}
               placeholder="—"
+              disabled={busy || creating}
               error={touched && unnamed ? t.nameRequired : undefined}
               createLabel={t.objectCreate}
               onCreate={
                 onCreateObject
                   ? (name) => {
                       // The region keeps the stored name even before the catalog list refreshes.
-                      void onCreateObject(name).then((object) =>
-                        editor.editAnnotation(annotation.id, {
-                          objectId: object.id,
-                          objectName: object.name,
-                        }),
-                      );
+                      setCreating(true);
+                      void onCreateObject(name)
+                        .then((object) =>
+                          editor.editAnnotation(annotation.id, {
+                            objectId: object.id,
+                            objectName: object.name,
+                          }),
+                        )
+                        .finally(() => setCreating(false));
                     }
                   : undefined
               }
             />
+            {creating && <LoadingState label={t.objectCreate} className="justify-start" />}
             {otherSelected && (
               <FormField label={t.objectOther}>
                 {(id) => (

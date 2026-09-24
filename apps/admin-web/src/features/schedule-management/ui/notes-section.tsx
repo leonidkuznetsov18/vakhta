@@ -85,6 +85,7 @@ export function NotesSection({
                   variant="ghost"
                   size="icon"
                   disabled={notes.busy}
+                  pending={notes.remove.isPending && notes.remove.variables === note.id}
                   onClick={() => notes.remove.mutate(note.id)}
                 />
               )}
@@ -156,7 +157,7 @@ export function NotesSection({
               options={scopeOptions}
             />
           </div>
-          <Button type="submit" size="sm" disabled={!canAdd}>
+          <Button type="submit" size="sm" pending={notes.create.isPending} disabled={!canAdd}>
             <PlusIcon aria-hidden="true" />
             {t.addNote}
           </Button>

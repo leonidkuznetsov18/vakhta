@@ -7,7 +7,6 @@ import {
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { QueryActivity } from './query-activity';
-import { MutationActivity } from '@/components/app/query-feedback';
 import { localActivity } from '@/shared/api/activity';
 
 const activityTestKeys = {
@@ -28,7 +27,6 @@ function setup() {
   const view = render(
     <QueryClientProvider client={client}>
       <QueryActivity />
-      <MutationActivity />
     </QueryClientProvider>,
   );
   return { client, view };
@@ -115,35 +113,19 @@ describe('QueryActivity', () => {
   });
 });
 
-it('keeps photo preparation out of page feedback while a real save remains visible', async () => {
+it('never shows a save in the shell; the surface that saves owns its loader', async () => {
   const { client } = setup();
-  const photo = pendingRead();
   const save = pendingRead();
-  const preparation = new MutationObserver(client, {
-    mutationFn: () => photo.promise,
-    meta: localActivity,
-  });
   const writing = new MutationObserver(client, { mutationFn: () => save.promise });
-  let prepared: Promise<string>;
   let saved: Promise<string>;
-  await act(async () => {
-    prepared = preparation.mutate();
-  });
-  expect(screen.queryByRole('status')).toBeNull();
   await act(async () => {
     saved = writing.mutate();
   });
-  await waitFor(() => expect(screen.getAllByRole('status')).toHaveLength(1));
-  await act(async () => {
-    photo.finish('decoded');
-    await prepared;
-  });
-  expect(screen.getAllByRole('status')).toHaveLength(1);
+  expect(screen.queryByRole('status')).toBeNull();
   await act(async () => {
     save.finish('saved');
     await saved;
   });
-  await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
 });
 
 it('keeps photo metadata refresh inside its owning surface', async () => {

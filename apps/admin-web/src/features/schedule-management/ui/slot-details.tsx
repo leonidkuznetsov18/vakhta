@@ -99,6 +99,7 @@ export function SlotDetails({
           />
           <Button
             disabled={slots.busy}
+            pending={slots.offer.isPending}
             onClick={() => slots.offer.mutate({ id: slot.id, command: { audience } })}
           >
             <SendIcon aria-hidden="true" />
@@ -150,6 +151,10 @@ export function SlotDetails({
                       size="sm"
                       className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
                       disabled={!canSelect}
+                      pending={
+                        slots.select.isPending &&
+                        slots.select.variables.command.employeeId === item.employeeId
+                      }
                       onClick={() => {
                         if (!w.version || !canSelect) return;
                         slots.select.mutate(
@@ -181,6 +186,7 @@ export function SlotDetails({
             <Button
               variant="outline"
               disabled={slots.busy}
+              pending={slots.withdraw.isPending}
               onClick={() => slots.withdraw.mutate(slot.id)}
             >
               <Undo2Icon aria-hidden="true" />
@@ -190,6 +196,7 @@ export function SlotDetails({
           <Button
             variant="destructive"
             disabled={slots.busy}
+            pending={slots.cancel.isPending}
             onClick={() => slots.cancel.mutate(slot.id, { onSuccess: onDone })}
           >
             <BanIcon aria-hidden="true" />

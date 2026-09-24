@@ -44,7 +44,7 @@ Decision: [ADR-0017](../../adr/0017-unit-shift-templates.md).
   - unfit options greyed but selectable;
   - saving custom hours as a template;
   - editing a template never changes created shifts.
-- The prototype (throwaway, removed) validated the one-Sheet layout, 6/8/12/24 presets, the
+- The prototype (throwaway, removed) validated the one-Sheet layout, length presets, the
   suggested type, the optional name and card pickers.
 - We version templates instead of snapshotting assignment hours (ADR-0017), so no assignment
   migration is needed.
@@ -86,6 +86,12 @@ Decision: [ADR-0017](../../adr/0017-unit-shift-templates.md).
   Retest: `templates.service.test.ts` (13), `requests.service.test.ts` (11),
   `use-staffing.test.ts`, then API scheduling/requests/shift/overview/telegram/attendance (189)
   and admin-web (558), all passed.
+
+2026-09-24, owner UI review: one loader for the whole Sheet; the standard-shifts chevron points
+right when closed; presets are 6/8/12 h (a full day is the type) with the length right after them;
+"Shift name" with an example placeholder; the clock opens and closes a half-hour list (the native
+picker cannot be closed by its icon). Tests: unit-settings 11, Directories 3; preview screenshots
+at 1280×900 and 375×812.
 
 ## Remaining work
 

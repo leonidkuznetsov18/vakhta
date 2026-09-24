@@ -102,6 +102,8 @@ export function HandoverPage() {
     },
   });
   const busy = decide.isPending;
+  const deciding = (id: string, decision: HandoverResolution) =>
+    decide.isPending && decide.variables.id === id && decide.variables.decision === decision;
   const error = readError(decide.error);
 
   /**
@@ -284,6 +286,7 @@ export function HandoverPage() {
                 <Button
                   type="button"
                   variant="success"
+                  pending={deciding(row.id, 'RESOLVED_ACCEPTED')}
                   disabled={busy || !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')}
                   onClick={() => resolve(row, 'RESOLVED_ACCEPTED')}
                 >
@@ -293,6 +296,7 @@ export function HandoverPage() {
                 <Button
                   type="button"
                   variant="destructive"
+                  pending={deciding(row.id, 'RESOLVED_ISSUE_CONFIRMED')}
                   disabled={
                     busy ||
                     (comments[row.id] ?? '').trim().length < 3 ||

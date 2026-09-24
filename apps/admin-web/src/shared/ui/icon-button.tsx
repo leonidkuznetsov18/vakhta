@@ -11,6 +11,7 @@ export function IconButton({
   tooltip,
   children,
   disabled,
+  pending = false,
   size,
   ...props
 }: ComponentProps<typeof Button> & {
@@ -19,10 +20,12 @@ export function IconButton({
   tooltip: string;
 }) {
   const iconOnly = size?.startsWith('icon') ?? false;
+  const inactive = pending || disabled === true;
   const control = (
     <Button
       type="button"
       disabled={disabled}
+      pending={pending}
       size={size}
       aria-label={iconOnly ? label : undefined}
       {...props}
@@ -35,11 +38,11 @@ export function IconButton({
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          {disabled ? (
+          {inactive ? (
             <span
               className="inline-flex min-w-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              tabIndex={disabled ? 0 : undefined}
-              aria-label={disabled ? label : undefined}
+              tabIndex={0}
+              aria-label={label}
             >
               {control}
             </span>

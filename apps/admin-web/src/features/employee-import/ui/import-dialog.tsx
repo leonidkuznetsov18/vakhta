@@ -201,8 +201,8 @@ function ImportSession({ onOpenChange, onImported, returnFocusTo }: ImportDialog
           <Button type="button" variant="outline" disabled={busy} onClick={() => reset(false)}>
             {all.ui.common.close}
           </Button>
-          <Button type="button" disabled={busy || count === 0} onClick={submit}>
-            {busy ? <LoadingState label={all.ui.common.saving} /> : `${e.importRun} (${count})`}
+          <Button type="button" pending={busy} disabled={count === 0} onClick={submit}>
+            {`${e.importRun} (${count})`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -226,8 +226,8 @@ export function Audience() {
               type="button"
               variant="outline"
               size="sm"
+              pending={selectAll.isPending}
               disabled={
-                selectAll.isPending ||
                 !query.data?.total ||
                 (JSON.stringify(selectAll.variables?.filters) === JSON.stringify(filters) &&
                   !!selectAll.data &&

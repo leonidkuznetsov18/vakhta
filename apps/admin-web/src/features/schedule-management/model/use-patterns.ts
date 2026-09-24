@@ -6,7 +6,7 @@ import { scheduleKeys } from './ownership';
 export const patternsKey = (access: string, siteId: string) =>
   [...scheduleKeys.all(access), 'patterns', siteId] as const;
 
-/** Saved batch inputs of the site; saving or removing refreshes the same list. */
+/** Saved batch inputs of the site; saving refreshes the same list. */
 export function usePatterns(input: {
   readonly accessKey: string;
   readonly siteId: string;
@@ -26,11 +26,5 @@ export function usePatterns(input: {
     networkMode: 'always',
     onSuccess: refresh,
   });
-  const remove = useMutation({
-    mutationFn: (id: string) => patternsApi.remove(id),
-    retry: false,
-    networkMode: 'always',
-    onSuccess: refresh,
-  });
-  return { query, patterns: query.data ?? [], save, remove };
+  return { query, patterns: query.data ?? [], save };
 }

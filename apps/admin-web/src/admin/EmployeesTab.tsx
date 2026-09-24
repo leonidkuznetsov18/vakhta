@@ -56,7 +56,7 @@ import {
 import { ImportDialog } from '@/features/employee-import';
 import { UploadIcon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
-import { CreateEmployeeCommand } from '@vakhta/contracts';
+import { CreateEmployeeCommand, EmployeeStatusSchema } from '@vakhta/contracts';
 import { CodeSheet } from './CodeSheet.tsx';
 import { PrinterIcon } from 'lucide-react';
 
@@ -71,6 +71,13 @@ const STATUS_TONE: Record<EmployeeView['status'], Tone> = {
   BLOCKED: 'warning',
   TERMINATED: 'neutral',
 };
+
+/** The one status change a card offers: block an active card, restore a blocked or dismissed one. */
+const STATUS_ACTIONS = {
+  ACTIVE: { key: 'block', icon: BanIcon, to: EmployeeStatusSchema.enum.BLOCKED },
+  BLOCKED: { key: 'unblock', icon: CircleCheckIcon, to: EmployeeStatusSchema.enum.ACTIVE },
+  TERMINATED: { key: 'reinstate', icon: UserCheckIcon, to: EmployeeStatusSchema.enum.ACTIVE },
+} as const;
 
 /** Employee cards: creation, activation code, position, status, Telegram relink (spec 2, FR-ID-*). */
 export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
@@ -386,6 +393,19 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     },
   ];
 
+  const statusAction = (emp: EmployeeView): RowAction => {
+    const action = STATUS_ACTIONS[emp.status];
+    return {
+      key: action.key,
+      label: e[action.key],
+      icon: action.icon,
+      disabled: busy,
+      pending: setStatus.isPending && setStatus.variables.emp.id === emp.id,
+      separator: true,
+      onSelect: () => void changeStatus(emp, action.to),
+    };
+  };
+
   const rowActions = (emp: EmployeeView): RowAction[] => [
     {
       key: 'position',
@@ -400,6 +420,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             label: e.issueCode,
             icon: KeyRoundIcon,
             disabled: busy,
+            pending: issue.isPending && issue.variables.id === emp.id,
             onSelect: () => issueCode(emp),
           },
         ]
@@ -415,42 +436,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           },
         ]
       : []),
-    ...(canEditEmployee(emp, org, roles) && emp.status === 'ACTIVE'
-      ? [
-          {
-            key: 'block',
-            label: e.block,
-            icon: BanIcon,
-            disabled: busy,
-            separator: true,
-            onSelect: () => void changeStatus(emp, 'BLOCKED'),
-          },
-        ]
-      : []),
-    ...(canEditEmployee(emp, org, roles) && emp.status === 'BLOCKED'
-      ? [
-          {
-            key: 'unblock',
-            label: e.unblock,
-            icon: CircleCheckIcon,
-            disabled: busy,
-            separator: true,
-            onSelect: () => void changeStatus(emp, 'ACTIVE'),
-          },
-        ]
-      : []),
-    ...(canEditEmployee(emp, org, roles) && emp.status === 'TERMINATED'
-      ? [
-          {
-            key: 'reinstate',
-            label: e.reinstate,
-            icon: UserCheckIcon,
-            disabled: busy,
-            separator: true,
-            onSelect: () => void changeStatus(emp, 'ACTIVE'),
-          },
-        ]
-      : []),
+    ...(canEditEmployee(emp, org, roles) ? [statusAction(emp)] : []),
     ...(canEditEmployee(emp, org, roles)
       ? [
           {
@@ -458,6 +444,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             label: e.deleteEmployee,
             icon: Trash2Icon,
             disabled: busy,
+            pending: drop.isPending && drop.variables.emp.id === emp.id,
             destructive: true,
             separator: true,
             onSelect: () => void deleteEmployee(emp),
@@ -621,6 +608,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
                     </Button>
                     <Button
                       type="submit"
+                      pending={add.isPending}
                       disabled={busy || isBlank(personnelNumber) || isBlank(fullName)}
                     >
                       {t.common.add}
@@ -692,6 +680,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             <Button
               type="button"
               size="sm"
+              pending={issueMany.isPending}
               disabled={busy || selectable.length === 0}
               onClick={issueSelected}
             >
@@ -703,6 +692,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
               type="button"
               size="sm"
               variant="destructive"
+              pending={dropMany.isPending}
               disabled={busy || selected.size === 0}
               onClick={deleteSelected}
             >
@@ -819,7 +809,7 @@ function RelinkDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               {t.common.cancel}
             </Button>
-            <Button type="submit" disabled={busy || !valid}>
+            <Button type="submit" pending={busy} disabled={busy || !valid}>
               {e.relink}
             </Button>
           </DialogFooter>
@@ -960,8 +950,8 @@ function AssignPositionForm({
         <Button
           type="submit"
           variant="secondary"
+          pending={busy}
           disabled={
-            busy ||
             !orgUnitId ||
             !positionId ||
             (current !== null &&

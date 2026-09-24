@@ -141,7 +141,7 @@ Assumptions (defaults; change only on owner request):
   "Create the first shift". Otherwise a "New shift" button opens the same inline form.
 - **AC-007**: The form has these fields, in order:
   - Start and End;
-  - duration presets **6 / 8 / 12 / 24 h**, which set End = Start + N, with the resulting duration
+  - duration presets **6 / 8 / 12 h** (a full day is chosen by type), which set End = Start + N, with the resulting duration
     and "until the next day" when the shift crosses midnight;
   - Type (a three-way control), set automatically from the times until the administrator picks one;
   - an optional Name, whose placeholder is the time range;

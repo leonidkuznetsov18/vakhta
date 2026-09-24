@@ -251,6 +251,9 @@ export function StaffingSheet({
                       icon: Trash2Icon,
                       destructive: true,
                       disabled: staffing.busy,
+                      pending:
+                        staffing.removeRequirement.isPending &&
+                        staffing.removeRequirement.variables === row.id,
                       onSelect: () => staffing.removeRequirement.mutate(row.id),
                     },
                   ]
@@ -327,7 +330,11 @@ export function StaffingSheet({
                 )}
               </FormField>
               <div className="flex flex-wrap gap-2 sm:col-span-2">
-                <Button type="submit" disabled={!canSaveRequirement}>
+                <Button
+                  type="submit"
+                  pending={staffing.setRequirement.isPending}
+                  disabled={!canSaveRequirement}
+                >
                   {draft.id ? t.saveRequirement : t.addRequirement}
                 </Button>
                 {(draft.id || draft.effectiveTo || draft.note) && (
@@ -389,7 +396,12 @@ export function StaffingSheet({
                   />
                 )}
               </FormField>
-              <Button type="submit" variant="outline" disabled={!canAddQualification}>
+              <Button
+                type="submit"
+                variant="outline"
+                pending={staffing.createQualification.isPending}
+                disabled={!canAddQualification}
+              >
                 {t.addQualification}
               </Button>
             </form>
@@ -474,7 +486,11 @@ export function StaffingSheet({
             />
             {owner && (
               <div className="sm:col-span-2">
-                <Button type="submit" disabled={!canSaveRules}>
+                <Button
+                  type="submit"
+                  pending={staffing.setRules.isPending}
+                  disabled={!canSaveRules}
+                >
                   {t.saveRules}
                 </Button>
               </div>
@@ -519,6 +535,9 @@ export function StaffingSheet({
                       icon: Trash2Icon,
                       destructive: true,
                       disabled: staffing.busy,
+                      pending:
+                        staffing.removeAvailability.isPending &&
+                        staffing.removeAvailability.variables === row.id,
                       onSelect: () => staffing.removeAvailability.mutate(row.id),
                     },
                   ]
@@ -611,7 +630,11 @@ export function StaffingSheet({
                 onChange={(validTo) => setAvailability({ ...availability, validTo })}
               />
               <div className="sm:col-span-2">
-                <Button type="submit" disabled={!canRecordAvailability}>
+                <Button
+                  type="submit"
+                  pending={staffing.recordAvailability.isPending}
+                  disabled={!canRecordAvailability}
+                >
                   {t.addAvailability}
                 </Button>
               </div>
@@ -651,6 +674,9 @@ export function StaffingSheet({
                       icon: Trash2Icon,
                       destructive: true,
                       disabled: staffing.busy,
+                      pending:
+                        staffing.removeHolding.isPending &&
+                        staffing.removeHolding.variables === row.id,
                       onSelect: () => staffing.removeHolding.mutate(row.id),
                     },
                   ]
@@ -705,7 +731,11 @@ export function StaffingSheet({
                 onChange={(validUntil) => setHolding({ ...holding, validUntil })}
               />
               <div className="sm:col-span-2">
-                <Button type="submit" disabled={!canRecordHolding}>
+                <Button
+                  type="submit"
+                  pending={staffing.recordHolding.isPending}
+                  disabled={!canRecordHolding}
+                >
                   {t.addHolding}
                 </Button>
               </div>

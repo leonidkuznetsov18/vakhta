@@ -323,9 +323,9 @@ export function BatchPlanner({
           {!review && (
             <Button
               variant="ghost"
+              pending={saved.save.isPending}
               disabled={
                 !w.writable ||
-                saved.save.isPending ||
                 !!(
                   loadedPattern &&
                   saved.patterns.find(

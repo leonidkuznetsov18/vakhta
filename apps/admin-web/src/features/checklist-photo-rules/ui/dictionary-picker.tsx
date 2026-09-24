@@ -19,6 +19,7 @@ export function DictionaryPicker({
   onChoose,
   onManual,
   disabled,
+  pending = false,
   allowManual = true,
 }: {
   value: string;
@@ -26,6 +27,8 @@ export function DictionaryPicker({
   onChoose: (value: DictionarySnapshot) => void;
   onManual: (name: string) => void;
   disabled: boolean;
+  /** The chosen object is being created; its Add button shows it. */
+  pending?: boolean;
   allowManual?: boolean;
 }) {
   const locale = currentLocale();
@@ -102,6 +105,7 @@ export function DictionaryPicker({
           <Button
             type="button"
             className="self-start"
+            pending={pending}
             disabled={disabled || !manual.success}
             onClick={() => {
               if (!disabled && manual.success) onManual(manual.data);
@@ -191,6 +195,7 @@ export function DictionaryPicker({
               <Button
                 type="button"
                 className="self-start"
+                pending={pending}
                 disabled={disabled}
                 onClick={() => {
                   if (!disabled && detail.data) {

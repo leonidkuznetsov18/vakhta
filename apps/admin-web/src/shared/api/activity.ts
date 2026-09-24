@@ -1,8 +1,8 @@
-import type { Mutation, Query } from '@tanstack/react-query';
+import type { Query } from '@tanstack/react-query';
 
-/** The owning surface renders feedback for these operations. */
+/** The owning surface renders the refresh of these reads; the header slot ignores them. */
 export const localActivity = { globalActivity: false } as const;
 
-export function hasGlobalActivity(operation: Query | Mutation): boolean {
-  return operation.meta?.['globalActivity'] !== false;
+export function hasGlobalActivity(query: Query): boolean {
+  return query.meta?.['globalActivity'] !== false;
 }

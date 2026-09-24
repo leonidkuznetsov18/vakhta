@@ -73,8 +73,11 @@ export function DirectoriesTab({ org }: Props) {
   );
   const [needsMaster, setNeedsMaster] = useState(false);
   const [unitsView, setUnitsView] = usePersistentState<UnitsView>('directories.unitsView', 'table');
-  // The tree needs the whole roster; the table does not, so the read waits until the tree is chosen.
-  const roster = useQuery({ ...profileDirectoryOptions(), enabled: unitsView === 'tree' });
+  // The tree and the unit Sheet's master need the whole roster; the table alone does not.
+  const roster = useQuery({
+    ...profileDirectoryOptions(),
+    enabled: unitsView === 'tree' || openUnit !== null,
+  });
   const profileText = all.employeeProfile;
   const unitShiftsText = all.unitShifts;
   const [dlg, setDlg] = useState<'sites' | 'orgUnits' | 'teams' | 'positions' | 'zones' | null>(
@@ -149,6 +152,7 @@ export function DirectoriesTab({ org }: Props) {
       label: d.delete,
       icon: Trash2Icon,
       disabled: busy,
+      pending: drop.isPending && drop.variables.id === row.id,
       destructive: true,
       separator: true,
       onSelect: () => void remove(kind, row.id, row.name),
@@ -304,7 +308,11 @@ export function DirectoriesTab({ org }: Props) {
                 <Button type="button" variant="outline" onClick={() => setDlg(null)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy || isBlank(site.code) || isBlank(site.name)}>
+                <Button
+                  type="submit"
+                  pending={add.isPending}
+                  disabled={busy || isBlank(site.code) || isBlank(site.name)}
+                >
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -386,7 +394,11 @@ export function DirectoriesTab({ org }: Props) {
                 <Button type="button" variant="outline" onClick={() => setDlg(null)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy || !unit.siteId || isBlank(unit.name)}>
+                <Button
+                  type="submit"
+                  pending={add.isPending}
+                  disabled={busy || !unit.siteId || isBlank(unit.name)}
+                >
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -401,6 +413,7 @@ export function DirectoriesTab({ org }: Props) {
             parentName={openUnit.parentId ? unitName(openUnit.parentId) : null}
             editable={unitEditable}
             master={<UnitMasterField key={openUnit.id} unit={openUnit} editable={unitEditable} />}
+            masterLoading={roster.isPending && roster.isFetching}
             onClose={() => setOpenUnitId(null)}
           />
         )}
@@ -507,7 +520,11 @@ export function DirectoriesTab({ org }: Props) {
                 <Button type="button" variant="outline" onClick={() => setDlg(null)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy || !team.orgUnitId || isBlank(team.name)}>
+                <Button
+                  type="submit"
+                  pending={add.isPending}
+                  disabled={busy || !team.orgUnitId || isBlank(team.name)}
+                >
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -582,6 +599,7 @@ export function DirectoriesTab({ org }: Props) {
                 </Button>
                 <Button
                   type="submit"
+                  pending={add.isPending}
                   disabled={busy || isBlank(position.code) || isBlank(position.name)}
                 >
                   {t.common.add}
@@ -690,6 +708,7 @@ export function DirectoriesTab({ org }: Props) {
                 </Button>
                 <Button
                   type="submit"
+                  pending={add.isPending}
                   disabled={busy || !zone.orgUnitId || isBlank(zone.code) || isBlank(zone.name)}
                 >
                   {t.common.add}

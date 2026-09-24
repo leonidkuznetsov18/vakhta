@@ -32,7 +32,6 @@ vi.mock('@/features/overview', () => ({ useAttention: () => ({ data: {} }) }));
 vi.mock('@/lib/build-check', () => ({ useNewBuild: () => false }));
 vi.mock('@/lib/theme', () => ({ useAppearance: () => ({ theme: 'light', set: vi.fn() }) }));
 vi.mock('@/shared/ui/query-activity', () => ({ QueryActivity: () => null }));
-vi.mock('@/components/app/query-feedback', () => ({ MutationActivity: () => null }));
 vi.mock('@/components/app/how-it-works', () => ({ FaqButton: () => null }));
 vi.mock('@/features/employee-communications', () => ({
   CommunicationProvider: ({ children }: { children: React.ReactNode }) => children,

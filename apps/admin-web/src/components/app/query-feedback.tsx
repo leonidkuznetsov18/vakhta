@@ -1,5 +1,3 @@
-import { hasGlobalActivity } from '@/shared/api/activity';
-import { useIsMutating } from '@tanstack/react-query';
 import { messages } from '@vakhta/i18n';
 import { AlertCircleIcon, RefreshCwIcon } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
@@ -55,10 +53,4 @@ export function QueryFeedback({
   // Background activity belongs to the fixed-size header slot, never between page content.
   if (!query.isPending || !query.isFetching) return null;
   return <LoadingState label={t.loading} />;
-}
-
-/** Shared mutation feedback also covers dialogs and forms outside a table. */
-export function MutationActivity() {
-  const pending = useIsMutating({ predicate: hasGlobalActivity });
-  return pending ? <LoadingState label={messages(currentLocale()).ui.common.saving} /> : null;
 }

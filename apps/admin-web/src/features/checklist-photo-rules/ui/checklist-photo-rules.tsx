@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { InfoTip } from '@/components/app/info-tip';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { IconButton } from '@/shared/ui/icon-button';
-import { LoadingState } from '@/shared/ui/loading-state';
 import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
 import { readError } from '@/errors';
@@ -157,6 +156,7 @@ function RulesEditor({
       void client.invalidateQueries({ queryKey: rulesKey(definitionId) });
     },
   });
+  const renaming = (id: string) => rename.isPending && rename.variables.id === id;
   const retire = useMutation({
     mutationFn: (id: string) => rulesApi.updateObject(id, { active: false }),
     retry: false,
@@ -286,6 +286,7 @@ function RulesEditor({
                       variant="outline"
                       size="icon-sm"
                       disabled={busy || !changed}
+                      pending={renaming(object.id)}
                       onClick={() => rename.mutate({ id: object.id, name: value.trim() })}
                     >
                       <span className="sr-only">
@@ -299,6 +300,7 @@ function RulesEditor({
                       variant="ghost"
                       size="icon-sm"
                       disabled={busy}
+                      pending={retire.isPending && retire.variables === object.id}
                       onClick={() => {
                         if (window.confirm(t.deleteConfirm.replace('{name}', object.name)))
                           retire.mutate(object.id);
@@ -357,6 +359,7 @@ function RulesEditor({
             value={newName}
             onChange={setNewName}
             disabled={busy || (!lookupTarget && draft.length >= MAX_PHOTO_RULES)}
+            pending={create.isPending}
             allowManual={!lookupTarget}
             onManual={(name) => {
               if (!busy && draft.length < MAX_PHOTO_RULES) create.mutate({ name });
@@ -459,11 +462,12 @@ function RulesEditor({
           label={t.save}
           tooltip={t.save}
           disabled={busy || !dirty || !valid}
+          pending={mutation.isPending && !mutation.isPaused}
           onClick={() => {
             if (!busy && dirty && valid) mutation.mutate();
           }}
         >
-          {mutation.isPending && !mutation.isPaused ? <LoadingState /> : t.save}
+          {t.save}
         </IconButton>
       </div>
       {mutation.isPaused && (

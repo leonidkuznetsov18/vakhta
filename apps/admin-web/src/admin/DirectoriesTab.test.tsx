@@ -82,7 +82,7 @@ describe('DirectoriesTab units', () => {
     fireEvent.click(await screen.findByText('Цех Стаканов'));
     const sheet = await screen.findByRole('dialog');
     expect(within(sheet).getByRole('heading', { name: 'Цех Стаканов' })).toBeTruthy();
-    expect(within(sheet).getByText(all.unitShifts.sectionTitle)).toBeTruthy();
+    expect(await within(sheet).findByText(all.unitShifts.sectionTitle)).toBeTruthy();
   });
 
   it('opens the unit Sheet from the row menu for keyboard users', async () => {

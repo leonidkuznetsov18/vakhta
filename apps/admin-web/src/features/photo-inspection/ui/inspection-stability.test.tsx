@@ -9,7 +9,6 @@ import { reviewFixture, reviewPhotos } from '@/preview/review-fixtures';
 import { inspectionApi } from '../api/inspection-api';
 import type * as InspectionApiModule from '../api/inspection-api';
 import { PhotoInspectionDialog } from './inspection-dialog';
-import { MutationActivity } from '@/components/app/query-feedback';
 import { QueryActivity } from '@/shared/ui/query-activity';
 
 const canvas = vi.hoisted(() => ({
@@ -80,7 +79,6 @@ async function openPhoto() {
     <QueryClientProvider client={client}>
       <div data-testid="page-activity">
         <QueryActivity />
-        <MutationActivity />
       </div>
       <PhotoInspectionDialog
         sessionId="test-session"

@@ -7,6 +7,7 @@ import { format, messages } from '@vakhta/i18n';
 import { PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { DataTable, type Column } from '@/components/app/data-table';
@@ -150,6 +151,9 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
     revokeRole.isPending ||
     rename.isPending ||
     drop.isPending;
+  const dropping = (userId: string) => drop.isPending && drop.variables.id === userId;
+  const revoking = (grantId: string) =>
+    revokeRole.isPending && revokeRole.variables.grantId === grantId;
   const error = readError(
     add.error ?? grantRole.error ?? revokeRole.error ?? rename.error ?? drop.error,
   );
@@ -217,6 +221,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
               size="icon-sm"
               variant="ghost"
               className="text-destructive hover:text-destructive"
+              pending={dropping(user.id)}
               disabled={busy || !myRoles.includes('ADMIN')}
               onClick={() => void removeUser(user)}
             />
@@ -255,6 +260,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
                 <Button
                   type="submit"
                   size="sm"
+                  pending={rename.isPending}
                   disabled={busy || !draftName.trim() || draftName.trim() === user.name}
                 >
                   {all.ui.common.save}
@@ -299,6 +305,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
                           disabled={busy}
+                          pending={revoking(g.id)}
                           onClick={() => revoke(user, g.id)}
                         />
                       </span>
@@ -343,6 +350,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
               <Button
                 type="submit"
                 variant="secondary"
+                pending={grantRole.isPending}
                 disabled={busy || (scopeType !== 'ENTERPRISE' && !scopeId)}
               >
                 {replacing ? u.replaceRole : u.grant}
@@ -407,7 +415,11 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
                 className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 onClick={() => revoke(user, g.id)}
               >
-                <XIcon className="size-3" aria-hidden="true" />
+                {revoking(g.id) ? (
+                  <LoadingState className="[&_svg]:size-3" />
+                ) : (
+                  <XIcon className="size-3" aria-hidden="true" />
+                )}
               </button>
             </Badge>
           ))}
@@ -474,6 +486,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
                 </Button>
                 <Button
                   type="submit"
+                  pending={add.isPending}
                   disabled={busy || isBlank(email) || isBlank(name) || !password}
                 >
                   {t.common.add}
@@ -537,6 +550,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
             destructive: true,
             separator: true,
             disabled: busy,
+            pending: dropping(user.id),
             onSelect: () => void removeUser(user),
           },
         ]}

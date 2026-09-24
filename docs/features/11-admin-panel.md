@@ -41,7 +41,7 @@ Administration tabs:
   codes; every table has add, edit and delete with a reason. A units row (or "Открыть" in its menu,
   or the tree's "Открыть") opens the unit Sheet: the designated master and the unit's own shifts
   (spec 013). The table shows each unit's shifts as coloured hour chips, or "Стандартные". An
-  administrator creates, edits and deletes unit shifts: start and end, 6/8/12/24-hour presets, a
+  administrator creates, edits and deletes unit shifts: start and end, 6/8/12-hour presets, a
   Day/Night/Full-day type suggested from the hours, an optional name and a preview of the Schedule
   card; everyone else reads them. Editing a used shift keeps planned shifts on their old hours;
   deleting a used one hides it from choice and keeps what is planned. There is a "needs a master"

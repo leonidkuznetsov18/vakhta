@@ -107,7 +107,7 @@ export function PublicationReview({
             {completed ? messages(currentLocale()).ui.common.close : t.cancel}
           </Button>
           {!completed && (
-            <Button disabled={!ready || w.busy} onClick={publish}>
+            <Button pending={w.busy} disabled={!ready} onClick={publish}>
               {messages(currentLocale()).admin.schedule.publish}
             </Button>
           )}

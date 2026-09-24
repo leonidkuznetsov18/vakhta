@@ -203,7 +203,7 @@ export function ProposalSheet({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={!canApply} onClick={() => void apply()}>
+          <Button pending={applying} disabled={!canApply} onClick={() => void apply()}>
             {format(t.applyProposal, { count: kept.length })}
           </Button>
           <Button variant="outline" onClick={onClose}>

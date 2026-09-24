@@ -38,6 +38,16 @@ import { PRESET_KEY, clearSchedulePreset, type SchedulePreset } from './preset';
 
 const t = messages(currentLocale()).scheduleWorkspace;
 type WriteAction = 'save' | 'revise' | 'publish' | 'submit' | 'return' | 'remove';
+/** The command being sent, named as the control that sent it shows its own loader. */
+const WRITING = {
+  CREATE: 'create',
+  SAVE: 'save',
+  SUBMIT: 'submit',
+  RETURN: 'return',
+  PUBLISH: 'publish',
+  REVISE: 'revise',
+  DELETE: 'remove',
+} as const satisfies Record<ScheduleWebCommand['action'], WriteAction | 'create'>;
 const MAX_ITEMS = 5000;
 
 /**
@@ -499,6 +509,7 @@ export function useWorkspace() {
     },
     store,
     busy,
+    writing: sending ? WRITING[sending.action] : null,
     commandsBlocked,
     pendingCommand,
     commandUnconfirmed,

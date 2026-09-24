@@ -15,34 +15,8 @@ export function StatusAction({ profile }: { profile: EmployeeProfileView }) {
   const all = messages(currentLocale());
   const t = all.admin.administration.employees;
   const { confirm, dialog } = useConfirm();
-  const client = useQueryClient();
-  const navigate = useNavigate();
   const employee = profile.employee;
-  const mutation = useMutation({
-    mutationFn: (command: { status: 'ACTIVE' | 'BLOCKED'; reason: string }) =>
-      adminEmployeesApi.changeStatus(employee.id, command),
-    retry: false,
-    onSuccess: () => refreshProfiles(client),
-  });
-  // The server deletes a card without worked history and terminates one with history.
-  const removal = useMutation({
-    mutationFn: (reason: string) => adminEmployeesApi.bulkDelete([employee.id], reason),
-    retry: false,
-    onSuccess: async (result) => {
-      if (result.deleted === 0) {
-        notifySuccess(t.employeeArchived);
-        await refreshProfiles(client);
-        return;
-      }
-      notifySuccess(t.employeeDeleted);
-      await navigate({
-        to: '/administration/{-$tab}/{-$detail}',
-        params: { tab: 'employees', detail: undefined },
-        replace: true,
-      });
-      await refreshProfiles(client);
-    },
-  });
+  const { mutation, removal } = useStatusMutations(employee.id);
   if (!profile.access.statusEdit) return null;
   const busy = mutation.isPending || removal.isPending;
   const change = async (status: 'ACTIVE' | 'BLOCKED', label: string) => {
@@ -75,12 +49,19 @@ export function StatusAction({ profile }: { profile: EmployeeProfileView }) {
         <StatusButton
           label={employee.status === 'ACTIVE' ? t.block : restoreLabel}
           disabled={busy}
+          pending={mutation.isPending}
           onClick={() => {
             if (employee.status === 'ACTIVE') void change('BLOCKED', t.block);
             else void change('ACTIVE', restoreLabel);
           }}
         />
-        <StatusButton label={t.deleteEmployee} destructive disabled={busy} onClick={remove} />
+        <StatusButton
+          label={t.deleteEmployee}
+          destructive
+          disabled={busy}
+          pending={removal.isPending}
+          onClick={remove}
+        />
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -95,11 +76,13 @@ export function StatusAction({ profile }: { profile: EmployeeProfileView }) {
 function StatusButton({
   label,
   disabled,
+  pending,
   destructive = false,
   onClick,
 }: {
   label: string;
   disabled: boolean;
+  pending: boolean;
   destructive?: boolean;
   onClick: () => void | Promise<void>;
 }) {
@@ -109,6 +92,7 @@ function StatusButton({
       variant="outline"
       className={destructive ? 'text-destructive hover:text-destructive' : undefined}
       disabled={disabled}
+      pending={pending}
       onClick={() => {
         void onClick();
       }}
@@ -116,4 +100,36 @@ function StatusButton({
       {label}
     </Button>
   );
+}
+
+function useStatusMutations(employeeId: string) {
+  const t = messages(currentLocale()).admin.administration.employees;
+  const client = useQueryClient();
+  const navigate = useNavigate();
+  const mutation = useMutation({
+    mutationFn: (command: { status: 'ACTIVE' | 'BLOCKED'; reason: string }) =>
+      adminEmployeesApi.changeStatus(employeeId, command),
+    retry: false,
+    onSuccess: () => refreshProfiles(client),
+  });
+  // The server deletes a card without worked history and terminates one with history.
+  const removal = useMutation({
+    mutationFn: (reason: string) => adminEmployeesApi.bulkDelete([employeeId], reason),
+    retry: false,
+    onSuccess: async (result) => {
+      if (result.deleted === 0) {
+        notifySuccess(t.employeeArchived);
+        await refreshProfiles(client);
+        return;
+      }
+      notifySuccess(t.employeeDeleted);
+      await navigate({
+        to: '/administration/{-$tab}/{-$detail}',
+        params: { tab: 'employees', detail: undefined },
+        replace: true,
+      });
+      await refreshProfiles(client);
+    },
+  });
+  return { mutation, removal };
 }

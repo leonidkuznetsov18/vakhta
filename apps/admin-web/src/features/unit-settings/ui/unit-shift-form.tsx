@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { LoadingState } from '@/shared/ui/loading-state';
 import { calendarItemColors } from '@/shared/ui/resource-calendar';
 import { formatDuration } from '@/lib/format';
 import { PERIOD_TONE, PeriodBadge } from '@/entities/shift-template';
@@ -29,6 +28,7 @@ import {
   withStart,
   type ShiftDraft,
 } from '../model/shift-draft';
+import { TimeField } from './time-field';
 
 const t = messages(currentLocale()).unitShifts;
 const common = messages(currentLocale()).ui.common;
@@ -84,7 +84,7 @@ export function UnitShiftForm({
             id={id}
             value={draft.name}
             maxLength={UNIT_SHIFT_NAME_MAX}
-            placeholder={`${draft.localStart}–${draft.localEnd}`}
+            placeholder={t.namePlaceholder}
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
           />
         )}
@@ -100,8 +100,8 @@ export function UnitShiftForm({
         <Button type="button" variant="ghost" disabled={pending} onClick={onCancel}>
           {common.cancel}
         </Button>
-        <Button type="submit" disabled={!ready}>
-          {pending ? <LoadingState /> : submitLabel}
+        <Button type="submit" pending={pending} disabled={!ready}>
+          {submitLabel}
         </Button>
       </div>
     </form>
@@ -115,7 +115,7 @@ function HoursFields({ draft, onChange }: { draft: ShiftDraft; onChange: DraftCh
       <div className="grid grid-cols-2 gap-3">
         <FormField label={t.start}>
           {(id) => (
-            <TimeInput
+            <TimeField
               id={id}
               value={draft.localStart}
               onChange={(value) => onChange(withStart(draft, value))}
@@ -124,7 +124,7 @@ function HoursFields({ draft, onChange }: { draft: ShiftDraft; onChange: DraftCh
         </FormField>
         <FormField label={t.end}>
           {(id) => (
-            <TimeInput
+            <TimeField
               id={id}
               value={draft.localEnd}
               onChange={(value) => onChange(withHours(draft, draft.localStart, value))}
@@ -146,34 +146,12 @@ function HoursFields({ draft, onChange }: { draft: ShiftDraft; onChange: DraftCh
             {formatDuration(hours * 60)}
           </Button>
         ))}
-        <span className="ml-auto text-sm text-muted-foreground">
+        <span className="ml-1 text-sm text-muted-foreground">
           {formatDuration(minutes)}
           {endsNextDay(draft) && `, ${t.untilNextDay}`}
         </span>
       </div>
     </>
-  );
-}
-
-function TimeInput({
-  id,
-  value,
-  onChange,
-}: {
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <Input
-      id={id}
-      type="time"
-      step={60}
-      required
-      className="text-base tabular-nums"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
   );
 }
 

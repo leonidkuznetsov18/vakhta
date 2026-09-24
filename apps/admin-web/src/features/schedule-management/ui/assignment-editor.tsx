@@ -66,6 +66,7 @@ export function AssignmentEditor({
   onClose,
   onApplied = onClose,
   onCreateSlot,
+  creatingSlot = false,
 }: {
   workspace: Workspace;
   context: AssignmentContext;
@@ -74,6 +75,7 @@ export function AssignmentEditor({
   onApplied?: () => void;
   /** Creates an internal open slot for the chosen date, zone and shift instead of a person. */
   onCreateSlot?: (input: { businessDate: string; zoneId: string; templateId: string }) => void;
+  creatingSlot?: boolean;
 }) {
   const original = gridToItems(w.grid).find(
     (item) => item.employeeId === context.employeeId && item.businessDate === context.businessDate,
@@ -422,7 +424,8 @@ export function AssignmentEditor({
               type="button"
               variant="link"
               className="h-auto p-0"
-              disabled={!w.writable || !customStart || !customEnd || saveShift.isPending}
+              pending={saveShift.isPending}
+              disabled={!w.writable || !customStart || !customEnd}
               onClick={() => saveShift.mutate({ localStart: customStart, localEnd: customEnd })}
             >
               <PlusIcon aria-hidden="true" />
@@ -686,6 +689,7 @@ export function AssignmentEditor({
           <Button
             type="button"
             variant="secondary"
+            pending={creatingSlot}
             disabled={
               !w.writable ||
               !draft.zoneId ||

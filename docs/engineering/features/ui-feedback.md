@@ -135,3 +135,30 @@ cover Sheet, Dialog deferred focus, Popover, AlertDialog and explicit hover/cust
 existing IconButton checks still pass. Browser inspection confirmed focused Sheet close control with
 zero tooltips on opening, and an intentional keyboard return shows its tooltip. Lean: Simplify;
 remove unsolicited content without losing keyboard explanations or focus management.
+
+## 2026-09-24 — Loaders stay on the surface that changes
+
+Owner rule (basis): a loader appears only where data loads or changes. The shell's
+`MutationActivity` rendered a saving spinner above every page while any mutation ran, so saving in
+a Sheet pushed the page down and back. It is removed, and mutations no longer carry
+`localActivity` meta. The header `QueryActivity` keeps its fixed-size slot for background refreshes
+of cached reads; it cannot move the layout.
+
+Every save now shows its own progress:
+- `Button`/`IconButton` take `pending`: the control is inert, `aria-busy`, and the spinner replaces
+  its icon while the label stays, so the button keeps its width.
+- `RowAction.pending` marks the running action of one row; that row's "⋯" button shows it (the
+  menu closes on select, so the row is the surface).
+- Other surfaces show `LoadingState` in place: the object being created in a photo region, the AI
+  rating, an avatar upload, a grant being revoked, a draft created from a published plan.
+
+An audit of all 87 `useMutation` calls found 64 that only disabled their trigger and 6 with no
+feedback; each now has local feedback. A background attachment discard in the compose form stays
+silent on purpose: its row is removed at once. The unused pattern delete was removed.
+The unit Sheet shows one loader for its master and shifts on the first read.
+
+Evidence: `query-activity.test.tsx` asserts a pending save never reaches the shell;
+`icon-button.test.tsx` asserts a pending button is inert, busy and shows the spinner; admin-web
+561 tests passed; lint of the changed files passed and pruned 8 suppressions. Preview at 1280×900
+with 1.5–2.5 s latency: one status inside the Sheet and none outside, the page's first content row
+stayed at the same offset while a shift was created, and the submit button kept its label.

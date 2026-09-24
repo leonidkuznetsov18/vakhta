@@ -217,7 +217,8 @@ function ResponseForm({ view, launch }: { view: QuestionnaireView; launch: strin
             {!!state.error && (
               <Button
                 variant="outline"
-                disabled={reload.isPending || save.isPending}
+                pending={reload.isPending}
+                disabled={save.isPending}
                 onClick={() => {
                   if (!reload.isPending && !save.isPending) reload.mutate();
                 }}

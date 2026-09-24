@@ -131,6 +131,11 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - Use `shared/ui/loading-state.tsx` (shadcn Spinner) for every loading animation. Do not add skeletons,
   pulsing placeholder rows/cards or custom spinner implementations. Keep operation-specific labels
   and accessible status feedback; render one loader per pending surface.
+- Owner rule, 2026-09-24 (basis) — a loader appears only where the data is loading or changing:
+  the button, row, dialog or Sheet that saves or reads. There is no page- or shell-level loader for a
+  mutation, and a loader never inserts itself into page flow or shifts the layout. A Sheet or dialog
+  shows one loader for its whole first read, not one per section. Buttons show their own save
+  with `pending`; row actions with `RowAction.pending`.
 - Every async surface must distinguish initial loading, background refresh, offline/paused,
   failure with retry, successful empty data and saving. Bind tables and details to the real Query
   state; never turn missing data during loading/failure into "no records" or an endless spinner.

@@ -477,6 +477,7 @@ export function OperationsPage() {
               <Button
                 type="submit"
                 variant="success"
+                pending={apply.isPending && apply.variables.row.id === row.id}
                 disabled={
                   busy ||
                   isBlank(comment[row.id]) ||
@@ -507,6 +508,7 @@ export function OperationsPage() {
             label: o.clarify,
             icon: FlagIcon,
             disabled: busy,
+            pending: ask.isPending && ask.variables.row.id === row.id,
             onSelect: () => void clarify(row),
           },
         ]
@@ -625,6 +627,7 @@ export function OperationsPage() {
                   </Button>
                   <Button
                     type="submit"
+                    pending={begin.isPending}
                     disabled={busy || !startFor || startComment.trim().length < 3}
                   >
                     {o.start}

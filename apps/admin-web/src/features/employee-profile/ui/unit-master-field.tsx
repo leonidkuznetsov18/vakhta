@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { QueryFeedback } from '@/components/app/query-feedback';
-import { LoadingState } from '@/shared/ui/loading-state';
 import { notifySuccess } from '@/lib/toast';
 import { profileDirectoryOptions } from '../model/directory';
 import { refreshProfiles } from '../model/api';
@@ -71,8 +70,12 @@ export function UnitMasterField({
             ))}
         </NativeSelect>
         {editable && (
-          <Button variant="outline" disabled={!changed || mutation.isPending || !roster.data}>
-            {mutation.isPending ? <LoadingState /> : t.save}
+          <Button
+            variant="outline"
+            pending={mutation.isPending}
+            disabled={!changed || !roster.data}
+          >
+            {t.save}
           </Button>
         )}
       </div>

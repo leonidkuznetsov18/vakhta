@@ -63,6 +63,8 @@ export interface RowAction {
   readonly onSelect: () => void;
   readonly icon?: LucideIcon;
   readonly disabled?: boolean;
+  /** This action is running for this row; the row's menu button shows it. */
+  readonly pending?: boolean;
   readonly destructive?: boolean;
   readonly separator?: boolean;
 }
@@ -294,10 +296,11 @@ export function RowMenu({
   readonly label: string;
 }) {
   if (actions.length === 0) return null;
+  const pending = actions.some((action) => action.pending);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label={label}>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label={label} pending={pending}>
           <MoreHorizontalIcon aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>

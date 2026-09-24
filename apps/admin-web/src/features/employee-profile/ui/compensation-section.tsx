@@ -19,7 +19,6 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { InfoTip } from '@/components/app/info-tip';
-import { LoadingState } from '@/shared/ui/loading-state';
 import { profileApi, refreshProfiles } from '../model/api';
 import { profileError } from '../model/editor';
 
@@ -221,12 +220,8 @@ function CompensationEditor({
             </p>
           )}
           <div className="flex gap-3">
-            <Button disabled={!changed || mutation.isPending}>
-              {mutation.isPending ? (
-                <LoadingState label={messages(currentLocale()).ui.common.saving} />
-              ) : (
-                t.save
-              )}
+            <Button pending={mutation.isPending} disabled={!changed}>
+              {t.save}
             </Button>
             <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
               {t.cancel}

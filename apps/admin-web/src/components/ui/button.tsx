@@ -2,6 +2,7 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
 import { Slot } from 'radix-ui';
+import { Spinner } from './spinner';
 
 const buttonVariants = cva(
   "group/button max-md:min-h-10 max-md:min-w-10 inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -43,7 +44,7 @@ const buttonVariants = cva(
   },
 );
 
-function Button({
+function ButtonBase({
   className,
   variant = 'default',
   size = 'default',
@@ -63,6 +64,35 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
+  );
+}
+
+/**
+ * `pending`: the button's own operation runs. It is inert and busy; the spinner covers its content,
+ * which stays in place (and in the accessible name), so the button keeps its size.
+ */
+function Button({
+  pending = false,
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof ButtonBase> & { pending?: boolean }) {
+  if (!pending || props.asChild)
+    return (
+      <ButtonBase className={className} {...props}>
+        {children}
+      </ButtonBase>
+    );
+  return (
+    <ButtonBase {...props} disabled aria-busy className={cn('relative', className)}>
+      <Spinner
+        aria-hidden="true"
+        role={undefined}
+        aria-label={undefined}
+        className="absolute inset-0 m-auto"
+      />
+      <span className="inline-flex items-center gap-[inherit] opacity-0">{children}</span>
+    </ButtonBase>
   );
 }
 

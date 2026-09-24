@@ -125,6 +125,7 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
         <Feedback error={error} notice={null} />
         <Button
           type="submit"
+          pending={busy}
           disabled={busy || (step === 'password' ? isBlank(email) || !password : isBlank(code))}
         >
           {step === 'password' ? t.signIn : t.verify}

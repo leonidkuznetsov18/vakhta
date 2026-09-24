@@ -152,8 +152,8 @@ function PasswordForm({
         )}
       </FormField>
       {accept.isError ? <Feedback error={errorMessage(accept.error)} /> : null}
-      <Button type="submit" disabled={!valid || accept.isPending}>
-        {accept.isPending ? <LoadingState label={t.saving} /> : t.submit}
+      <Button type="submit" pending={accept.isPending} disabled={!valid}>
+        {t.submit}
       </Button>
     </form>
   );

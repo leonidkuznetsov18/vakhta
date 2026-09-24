@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ObjectSwatch } from './object-swatch';
 import { InfoTip } from '@/components/app/info-tip';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 /** The three answers read at a glance: a colored mark before the label, a tinted pressed state. */
@@ -36,10 +37,13 @@ const t = messages(currentLocale()).photoInspection;
 function RunFeedback({
   run,
   disabled,
+  saving,
   onRate,
 }: {
   run: PhotoInspectionView['runs'][number];
   disabled: boolean;
+  /** A rating of this run is being saved. */
+  saving: boolean;
   onRate: (runId: string, rating: AiFeedbackRating) => void;
 }) {
   return (
@@ -47,6 +51,7 @@ function RunFeedback({
       <span className="flex items-center gap-1 font-medium">
         {t.feedbackQuestion}
         <InfoTip text={t.feedbackHint} />
+        {saving && <LoadingState />}
       </span>
       <ToggleGroup
         type="single"
@@ -63,7 +68,7 @@ function RunFeedback({
           <ToggleGroupItem
             key={rating}
             value={rating}
-            disabled={disabled}
+            disabled={disabled || saving}
             className={`gap-1.5 px-3 font-medium ${RATING_STYLE[rating]}`}
           >
             <span aria-hidden="true">{RATING_EMOJI[rating]}</span>
@@ -84,11 +89,14 @@ export function PredictionPanel({
   latest,
   editor,
   disabled,
+  rating = false,
   onRate,
 }: {
   latest: PhotoInspectionView;
   editor: InspectionEditor;
   disabled: boolean;
+  /** A rating is being saved. */
+  rating?: boolean;
   onRate: (runId: string, rating: AiFeedbackRating) => void;
 }) {
   const review = useStore(editor.store, (state) => state.review);
@@ -104,7 +112,7 @@ export function PredictionPanel({
               ? t.aiQuotaExceeded
               : t.aiFailed}
         </p>
-        <RunFeedback run={run} disabled={disabled} onRate={onRate} />
+        <RunFeedback run={run} disabled={disabled} saving={rating} onRate={onRate} />
       </section>
     );
   if (!run.prediction) return null;
@@ -199,7 +207,7 @@ export function PredictionPanel({
           </div>
         ))}
       </div>
-      <RunFeedback run={run} disabled={disabled} onRate={onRate} />
+      <RunFeedback run={run} disabled={disabled} saving={rating} onRate={onRate} />
     </section>
   );
 }

@@ -88,13 +88,13 @@
       "count": 1
     },
     "complexity": {
-      "count": 3
+      "count": 2
     },
     "max-lines-per-function": {
       "count": 2
     },
     "no-restricted-syntax": {
-      "count": 13
+      "count": 10
     }
   },
   "apps/admin-web/src/admin/TerminalsTab.tsx": {
@@ -573,7 +573,7 @@
   },
   "apps/admin-web/src/features/employee-profile/ui/compensation-section.tsx": {
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "max-lines-per-function": {
       "count": 1
@@ -1467,7 +1467,7 @@
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 4
+      "count": 2
     },
     "no-restricted-syntax": {
       "count": 23
@@ -1858,9 +1858,6 @@
     }
   },
   "apps/admin-web/src/shared/ui/icon-button.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
     "complexity": {
       "count": 1
     }

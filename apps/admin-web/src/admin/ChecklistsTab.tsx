@@ -269,6 +269,7 @@ export function ChecklistsTab({ org }: Props) {
       label: row.isActive ? c.disable : c.enable,
       icon: PowerIcon,
       disabled: busy,
+      pending: setStatus.isPending && setStatus.variables.row.id === row.id,
       destructive: row.isActive,
       separator: true,
       onSelect: () => void toggle(row),
@@ -278,6 +279,7 @@ export function ChecklistsTab({ org }: Props) {
       label: c.delete,
       icon: Trash2Icon,
       disabled: busy,
+      pending: drop.isPending && drop.variables.row.id === row.id,
       destructive: true,
       onSelect: () => void remove(row),
     },
@@ -360,6 +362,7 @@ export function ChecklistsTab({ org }: Props) {
                     type="button"
                     variant={action.destructive ? 'destructive' : 'outline'}
                     disabled={action.disabled}
+                    pending={action.pending}
                     onClick={action.onSelect}
                   >
                     <action.icon aria-hidden="true" />
@@ -717,7 +720,7 @@ function ChecklistDialog({
           <Button type="button" variant="outline" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button type="submit" disabled={busy || unchanged}>
+          <Button type="submit" pending={busy} disabled={unchanged}>
             {row ? all.ui.common.save : t.common.add}
           </Button>
         </DialogFooter>

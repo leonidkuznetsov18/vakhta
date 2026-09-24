@@ -181,7 +181,7 @@ export function IncidentDetail({
               </p>
             )}
             <div>
-              <Button type="submit" variant="success" disabled={busy}>
+              <Button type="submit" variant="success" pending={busy}>
                 {draft.target ? i.apply : i.save}
               </Button>
             </div>

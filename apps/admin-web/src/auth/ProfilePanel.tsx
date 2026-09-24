@@ -15,6 +15,7 @@ import { CameraIcon, ShieldCheckIcon, ShieldAlertIcon, XIcon } from 'lucide-reac
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Label } from '@/components/ui/label';
 import { IconButton } from '@/shared/ui/icon-button';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { UserAvatar, photoToDataUrl } from '@/components/app/avatar';
 import { InfoTip } from '@/components/app/info-tip';
 import { notifySuccess } from '@/lib/toast';
@@ -124,7 +125,11 @@ export function ProfilePanel({ me, onChanged }: Props) {
             >
               <UserAvatar name={me.name} email={me.email} image={me.image} className="size-16" />
               <span className="absolute right-0 bottom-0 flex size-6 items-center justify-center rounded-full border bg-background text-foreground group-hover:bg-muted group-focus-visible:bg-muted">
-                <CameraIcon className="size-3.5" aria-hidden="true" />
+                {choosePhoto.isPending ? (
+                  <LoadingState className="[&_svg]:size-3.5" />
+                ) : (
+                  <CameraIcon className="size-3.5" aria-hidden="true" />
+                )}
               </span>
             </button>
           </div>
@@ -149,6 +154,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
                 size="icon-sm"
                 variant="ghost"
                 disabled={profileBusy}
+                pending={saveProfile.isPending && saveProfile.variables.image === null}
                 onClick={() => saveProfile.mutate({ image: null })}
               />
             )}
@@ -179,6 +185,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
             </FormField>
             <Button
               type="submit"
+              pending={saveProfile.isPending && saveProfile.variables.name !== undefined}
               disabled={
                 profileBusy || isBlank(name) || name.trim().length < 2 || name.trim() === me.name
               }
@@ -281,7 +288,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
               )}
             </FormField>
             <div>
-              <Button type="submit" disabled={busy || !password}>
+              <Button type="submit" pending={enable.isPending} disabled={busy || !password}>
                 {t.enableTwoFactor}
               </Button>
             </div>
@@ -313,7 +320,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
               )}
             </FormField>
             <div>
-              <Button type="submit" disabled={busy || isBlank(code)}>
+              <Button type="submit" pending={verify.isPending} disabled={busy || isBlank(code)}>
                 {t.verify}
               </Button>
             </div>

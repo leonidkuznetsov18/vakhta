@@ -117,13 +117,15 @@ export function RequestsPage() {
 
   const refresh = () => client.invalidateQueries({ queryKey: ['requests'] });
   const decision = useMutation({
-    mutationFn: (run: () => Promise<unknown>) => run(),
+    mutationFn: (v: { verdict: 'APPROVED' | 'REJECTED'; run: () => Promise<unknown> }) => v.run(),
     onSuccess: async () => {
       notifySuccess(r.decided);
       await refresh();
     },
   });
   const busy = decision.isPending;
+  const deciding = (verdict: 'APPROVED' | 'REJECTED') =>
+    decision.isPending && decision.variables.verdict === verdict;
   const error = readError(decision.error);
 
   function buildProposal() {
@@ -151,24 +153,28 @@ export function RequestsPage() {
       verdict === 'APPROVED' && req.type === 'CORRECTION' ? buildProposal() : undefined;
     setComment('');
     setApprovedMinutes('');
-    decision.mutate(() =>
-      requestsApi.decide(req.id, {
-        decision: verdict,
-        comment: text,
-        ...(approvedMinutes && (req.type === 'LATE' || req.type === 'EARLY_LEAVE')
-          ? { approvedMinutes: Number(approvedMinutes) }
-          : {}),
-        ...(proposal ? { proposal } : {}),
-      }),
-    );
+    decision.mutate({
+      verdict,
+      run: () =>
+        requestsApi.decide(req.id, {
+          decision: verdict,
+          comment: text,
+          ...(approvedMinutes && (req.type === 'LATE' || req.type === 'EARLY_LEAVE')
+            ? { approvedMinutes: Number(approvedMinutes) }
+            : {}),
+          ...(proposal ? { proposal } : {}),
+        }),
+    });
   }
 
   function decideOvertime(row: OvertimeView, verdict: 'APPROVED' | 'REJECTED') {
     const text = (overtimeComment[row.shiftSessionId] ?? '').trim();
     if (text.length < 3) return;
-    decision.mutate(() =>
-      requestsApi.decideOvertime(row.shiftSessionId, { decision: verdict, comment: text }),
-    );
+    decision.mutate({
+      verdict,
+      run: () =>
+        requestsApi.decideOvertime(row.shiftSessionId, { decision: verdict, comment: text }),
+    });
   }
 
   // The overtime rows sit in the same section under the requests, so they share its deep link:
@@ -283,12 +289,13 @@ export function RequestsPage() {
             )}
           </FormField>
           <div className="flex gap-2">
-            <Button type="submit" variant="success" disabled={busy}>
+            <Button type="submit" variant="success" pending={deciding('APPROVED')} disabled={busy}>
               {r.approve}
             </Button>
             <Button
               type="button"
               variant="destructive"
+              pending={deciding('REJECTED')}
               disabled={busy}
               onClick={() => decideOvertime(row, 'REJECTED')}
             >
@@ -408,12 +415,18 @@ export function RequestsPage() {
                   )}
                 </FormField>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="submit" variant="success" disabled={busy}>
+                  <Button
+                    type="submit"
+                    variant="success"
+                    pending={deciding('APPROVED')}
+                    disabled={busy}
+                  >
                     {r.approve}
                   </Button>
                   <Button
                     type="button"
                     variant="destructive"
+                    pending={deciding('REJECTED')}
                     disabled={busy}
                     onClick={() => decide(req, 'REJECTED')}
                   >
@@ -541,7 +554,7 @@ function MedicalLink({ request }: { readonly request: RequestView }) {
         type="button"
         variant="link"
         size="sm"
-        disabled={open.isPending}
+        pending={open.isPending}
         onClick={() => open.mutate()}
       >
         {failed ?? r.openMedical}
