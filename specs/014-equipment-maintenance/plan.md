@@ -112,6 +112,17 @@ Server state through TanStack Query keys per slice; filters in the URL (router s
 drafts of the plan form in the form library state; no Zustand store unless the calendar selection
 needs cross-component client state, which the existing schedule store pattern shows how to scope.
 
+### Panel screens
+
+The prototype `apps/admin-web/src/preview/maintenance-prototype.tsx` fixes the layout
+([prototype/README.md](prototype/README.md)). The implementation moves each screen into its FSD
+slice (equipment list → `features/equipment-register`, card → `entities/equipment` +
+`features/equipment-documents`, plan Sheet → `features/maintenance-plan-editor`, calendar →
+`features/maintenance-calendar` on `shared/ui/resource-calendar` or a month grid built from the same
+view-model pattern, work and review → `features/work-order-review`), replaces literals with
+`@vakhta/i18n` keys and fixtures with Query hooks. The prototype stays preview-only and is removed
+when delivery 2 ships.
+
 ### Compatibility and migration
 
 Additive migration; new enum value appended to `web_role`; nullable columns on incident tables;

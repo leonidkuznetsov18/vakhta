@@ -149,6 +149,24 @@ These change behavior; the rest of the spec is written for the recommended optio
   Alternative: the mechanic's "Done" completes the work immediately and the chief mechanic can only
   reopen it.
 
+### Interface prototype
+
+A clickable prototype of the panel and bot screens, built with the panel's own components and the
+three pilot machines, lives in the panel preview:
+`pnpm --filter admin-web dev` → `http://localhost:5173/preview.html?prototype=maintenance&screen=…`
+(`equipment`, `card`, `plan`, `calendar`, `work`, `review`, `emergency`, `bot`). Screenshots and the
+screen-by-screen walkthrough: [prototype/README.md](prototype/README.md). The prototype shows the
+recommended options of D-1–D-3. It is a design artifact, not the implementation: its texts are
+literals and its data are fixtures. On acceptance, its layout decisions below become requirements:
+
+- One panel section «Обслуговування» with tabs Equipment, Maintenance calendar and Work (FR-031).
+- Equipment opens a Sheet with the passport, documents, plans and history; a plan opens its own
+  Sheet with five numbered blocks and a live "how it will work" summary of dates and reminders.
+- Hues on these screens: planned maintenance cyan, "materials missing" violet, forecast a dotted
+  outline without fill, overdue orange, emergency and stopped red, working emerald, each with an
+  icon and text (FR-033).
+- An overdue item is also pinned above the calendar so it is not lost among future dates.
+
 ## User Scenarios and Testing
 
 ### US1: Equipment register (Priority: P1)

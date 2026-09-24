@@ -2,6 +2,7 @@ import { fetchFixture } from './test/fetch-fixture';
 import './preview/locale';
 import { ImportEmployeesCommand } from '@vakhta/contracts';
 import { CalendarPrototype } from './preview/calendar-prototype';
+import { MaintenancePrototype } from './preview/maintenance-prototype';
 import {
   scheduleFixture,
   extraScheduleZone,
@@ -996,11 +997,18 @@ applyStoredAppearance();
   document.body.append(banner);
 }
 
+/** The prototype and spike screens replace the whole signed-in app. */
+function previewRoot() {
+  if (params.get('prototype') === 'maintenance') return <MaintenancePrototype />;
+  if (params.get('calendar') === 'spike') return <CalendarPrototype />;
+  return <App router={router} />;
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={200}>
-        {params.get('calendar') === 'spike' ? <CalendarPrototype /> : <App router={router} />}
+        {previewRoot()}
         <Toaster richColors position="bottom-right" closeButton />
       </TooltipProvider>
     </QueryClientProvider>
