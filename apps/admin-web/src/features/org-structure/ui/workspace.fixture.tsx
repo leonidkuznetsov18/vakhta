@@ -56,7 +56,15 @@ interface Scenario {
 
 const ready: Data = { org: baseOrg, employees: baseRoster };
 const noUnits: Data = {
-  org: { ...baseOrg, orgUnits: [], teams: [], zones: [], responsibles: [], history: [] },
+  org: {
+    ...baseOrg,
+    orgUnits: [],
+    teams: [],
+    zones: [],
+    responsibles: [],
+    history: [],
+    payGroups: [],
+  },
   employees: baseRoster.map((employee) => ({ ...employee, currentPosition: null })),
 };
 const firstOperator = baseRoster.find((employee) => employee.personnelNumber === '1010');
@@ -242,8 +250,8 @@ function Frame({ current }: { readonly current: Scenario }) {
   return (
     <div className="flex min-h-screen">
       <SidebarMimic />
-      <main className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
-        <h1 className="text-2xl font-semibold">{text.title}</h1>
+      <main className="flex min-w-0 flex-1 flex-col gap-3 p-3 md:p-5">
+        <h1 className="text-xl font-semibold">{text.title}</h1>
         <UnitsWorkspace
           org={data.org}
           employees={data.employees}

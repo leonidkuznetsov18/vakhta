@@ -45,6 +45,18 @@ export interface ResponsibleAssignment {
   readonly validFrom: string;
 }
 
+/** A pay group attached to a node (spec 015, FR-002): its subtree inherits it. */
+export interface PayGroupAttachment {
+  readonly id: string;
+  readonly unitId: string;
+  readonly name: string;
+  readonly version: number;
+  readonly validFrom: string;
+  readonly draftVersion: number | null;
+  /** Positions the group pays; people in other positions are not its members. */
+  readonly positions: readonly string[];
+}
+
 export interface HistoryEntry {
   readonly id: string;
   readonly unitId: string;

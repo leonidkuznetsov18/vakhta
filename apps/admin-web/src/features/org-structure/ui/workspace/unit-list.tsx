@@ -15,7 +15,7 @@ import { MasterState, UNASSIGNED_KEY, type WorkspaceUnit } from '../../model/wor
 import { fill, text } from './text';
 
 const ROW_CLASS =
-  'group flex w-full min-w-0 items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring';
+  'group flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring';
 const ACTIVE_CLASS = 'bg-muted font-medium ring-1 ring-inset ring-border';
 const TOGGLE_CLASS =
   'flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring';

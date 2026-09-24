@@ -290,3 +290,54 @@ The plan above. Open decisions for the owner: the label for the designated maste
 ("Мастер смены" as in the directory column, or "Ответственный мастер" as in the profile); whether
 the Directories tree stays after the tab ships; whether the bulk endpoint is required for the first
 release or sequential single calls are acceptable.
+
+## Update 2026-09-24 (late): payroll TZ, the employee card and density
+
+The owner supplied "ТЗ учёт времени и зарплата v0.1" and asked to extend the interface and the
+logic with it, looking at how the employee card works today. Result: [spec 015](../../../specs/015-employee-card-pay-terms/spec.md)
+(assignments, pay groups, levels, personal terms, one-time corrections, transfer with exception
+decisions) and an addendum to spec 014 (configurable node kinds, distinct people vs assignments,
+employer separate from the tree, responsibility-level catalogue, tree views R36–R40).
+
+Prototype additions (`apps/admin-web/src/features/employee-profile/ui/pay-terms/`, entry
+`/e2e/pay-terms.html?state=<key>`; `features/org-structure/ui/workspace/pay-terms-block.tsx`):
+
+- the card section «Должности и оплата»: employment line, assignment rows (path, position, level,
+  group and version, share/FTE, dates, state), components table with columns Из группы ·
+  Персонально · Применено and the resolution path behind an icon (CFG-07), month preview strip,
+  one-time corrections, history; editors: personal replace/add (Sheet with value, unit, dates,
+  after-end rule, reason, was→becomes), level change (popover with the position's scale and
+  segmented preview), one-time correction (dialog), transfer (dialog with old/new sources and an
+  explicit decision per personal exception, PROC-06/CFG-06); access variants WRITE / READ /
+  NAMES (amounts hidden);
+- the node block «Условия оплаты» in Оргструктура: groups applied on the node, own or inherited
+  from an ancestor, version and date, draft version, coverage.
+
+Density pass (owner rule 2026-09-24, "use the page space wisely"): summary counts became inline
+text with only the actionable counts as chips; the filter row lost its label line; pane paddings
+and gaps went from 16/12 px to 12/8 px; the responsibles block is a 3-column grid with `xs`
+buttons; popovers are 18 rem with 10 px padding; on the phone the slot label sits above the
+person and the actions stay on the same row. Reference points: Material 3 density scale (−1/−2
+for data-heavy tools), Airbnb DLS 8 pt spacing with 4 pt inner rhythm, Google Workspace admin
+tables (32 px rows, inline filters without labels). The Connecteam screens in `docs/research/`
+(onboarding list and detail, bulk task entry tables) show the same traits: single-line rows,
+inline actions and no padding between sections. Other competitors were not re-checked for this
+pass.
+
+Verified against the owner's two "empty space" examples: the mobile section detail now stacks
+facts, responsibles, pay conditions and people without gaps between blocks
+(`section-mobile.jpg`), and the bulk-assign popover is 18 rem with a one-line target and no
+spare rows (`bulk-desktop.jpg`). The people list on the phone keeps the shared `DataTable`
+card layout (four lines per person), so the remaining vertical length there belongs to the
+shared control, not to this page.
+
+Verification of the third iteration: admin-web `tsc --noEmit` clean; `eslint` on
+`features/org-structure`, `features/employee-profile/ui/pay-terms*` and the two specs clean with
+no suppressions; Prettier applied; Playwright 66/66 (23 structure states + 10 card states, desktop
+and mobile) with the preinstalled Chromium; captures inspected. Evidence:
+`docs/engineering/evidence/pay-terms-2026-09-24/` (card states, desktop plus the read state on
+the phone) and the refreshed `org-structure-2026-09-24/` set. Review page for the owner:
+https://claude.ai/artifact/7iMQAwN9xeFBZHRGbPXRBe. Known prototype limits: the card's
+components table is a plain table with horizontal scroll on the phone (the production section
+uses `DataTable` card mode); "Добавить назначение" and "Где используется" are no-ops; copy lives
+in local dictionaries until the direction is accepted.

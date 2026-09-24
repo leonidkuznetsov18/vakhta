@@ -146,7 +146,7 @@ function ListPane(props: PaneProps) {
     ? filterUnits(workspace.units, filter)
     : visibleUnits(filterUnits(workspace.units, filter), collapsed);
   return (
-    <aside className="flex min-w-0 flex-col gap-3 rounded-lg border border-border p-2 md:self-start">
+    <aside className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-1.5 md:self-start">
       <PeopleHits hits={hits} onPick={props.onPickHit} />
       <UnitList
         units={rows}
@@ -165,7 +165,7 @@ function ListPane(props: PaneProps) {
 
 function DetailPane(props: PaneProps & { readonly isMobile: boolean }) {
   return (
-    <section className="flex min-w-0 flex-col gap-3 rounded-lg border border-border p-4">
+    <section className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3">
       {props.isMobile && (
         <Button
           type="button"
@@ -197,7 +197,7 @@ function Panes(props: PaneProps) {
   const showList = !isMobile || props.selection.key === null;
   const showDetail = !isMobile || props.selection.key !== null;
   return (
-    <div className={cn('grid gap-4', !isMobile && 'grid-cols-[minmax(280px,340px)_minmax(0,1fr)]')}>
+    <div className={cn('grid gap-3', !isMobile && 'grid-cols-[minmax(260px,320px)_minmax(0,1fr)]')}>
       {showList && <ListPane {...props} />}
       {showDetail && <DetailPane {...props} isMobile={isMobile} />}
     </div>
@@ -271,7 +271,7 @@ function Loaded({
   const createButton = editable ? <CreateButton onClick={() => setCreate({})} /> : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <Summary
           totals={workspace.totals}

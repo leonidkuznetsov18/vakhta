@@ -6,6 +6,7 @@ import {
   ResponsibleSlot,
   type HistoryEntry,
   type OrgNodeView,
+  type PayGroupAttachment,
   type ResponsibleAssignment,
 } from './org-node';
 import { buildOrgTree, type SiteNode, type UnitNode } from './unit-tree';
@@ -68,6 +69,18 @@ export interface ResponsibleInfo {
   readonly inheritedFrom: string | null;
 }
 
+/** A pay group as one node sees it: own or inherited, with the coverage below this node. */
+export interface AppliedPayGroup {
+  readonly id: string;
+  readonly name: string;
+  readonly version: number;
+  readonly validFrom: string;
+  readonly draftVersion: number | null;
+  readonly inheritedFrom: string | null;
+  readonly assignments: number;
+  readonly people: number;
+}
+
 export interface WorkspaceUnit {
   readonly unit: OrgNodeView;
   readonly siteName: string;
@@ -85,6 +98,7 @@ export interface WorkspaceUnit {
   readonly teams: readonly { readonly id: string; readonly name: string }[];
   readonly zones: number;
   readonly history: readonly HistoryEntry[];
+  readonly payGroups: readonly AppliedPayGroup[];
 }
 
 export interface WorkspaceTotals {
@@ -105,6 +119,7 @@ export interface WorkspaceOrg extends Pick<OrgSnapshot, 'sites' | 'positions' | 
   readonly orgUnits: readonly OrgNodeView[];
   readonly responsibles: readonly ResponsibleAssignment[];
   readonly history: readonly HistoryEntry[];
+  readonly payGroups: readonly PayGroupAttachment[];
 }
 
 export interface WorkspaceInput {
@@ -249,6 +264,7 @@ function subtreeIds(node: UnitNode, into: Set<string>): Set<string> {
 
 interface Flattener {
   readonly people: ReadonlyMap<string | null, readonly WorkspacePerson[]>;
+  readonly payGroupsByUnit: ReadonlyMap<string, readonly PayGroupAttachment[]>;
   readonly lookup: SlotLookup;
   readonly nodes: ReadonlyMap<string, OrgNodeView>;
   readonly teamsByUnit: ReadonlyMap<string, readonly Named[]>;
@@ -262,6 +278,50 @@ interface Placing {
   readonly site: SiteNode;
   readonly path: readonly Named[];
   readonly inherited: ReadonlyMap<ResponsibleSlot, ResponsibleInfo>;
+  /** Groups attached above this node, credited to the node that attached them. */
+  readonly inheritedGroups: readonly {
+    readonly group: PayGroupAttachment;
+    readonly from: string;
+  }[];
+}
+
+/** Coverage of a group below a node: people whose position the group pays, counted once. */
+function coverageOf(node: UnitNode, group: PayGroupAttachment, people: Flattener['people']) {
+  const paid = new Set(group.positions);
+  const ids = new Set<string>();
+  const walk = (current: UnitNode) => {
+    for (const person of people.get(current.unit.id) ?? []) {
+      if (person.positionName && paid.has(person.positionName)) ids.add(person.id);
+    }
+    for (const child of current.children) walk(child);
+  };
+  walk(node);
+  return { assignments: ids.size, people: ids.size };
+}
+
+interface GroupsQuery {
+  readonly node: UnitNode;
+  readonly own: readonly PayGroupAttachment[];
+  readonly inherited: Placing['inheritedGroups'];
+}
+
+function appliedGroups(
+  { node, own, inherited }: GroupsQuery,
+  people: Flattener['people'],
+): AppliedPayGroup[] {
+  const rows = [
+    ...own.map((group) => ({ group, from: null as string | null })),
+    ...inherited.map((row) => ({ group: row.group, from: row.from as string | null })),
+  ];
+  return rows.map(({ group, from }) => ({
+    id: group.id,
+    name: group.name,
+    version: group.version,
+    validFrom: group.validFrom,
+    draftVersion: group.draftVersion,
+    inheritedFrom: from,
+    ...coverageOf(node, group, people),
+  }));
 }
 
 /** Shift masters exist where shifts are worked: shops and sections, never a division. */
@@ -315,9 +375,10 @@ function peopleOf(unitId: string, headName: string | null, ctx: Flattener): Work
   }));
 }
 
-function flatten({ node, site, path, inherited }: Placing, ctx: Flattener) {
+function flatten({ node, site, path, inherited, inheritedGroups }: Placing, ctx: Flattener) {
   const unit = ctx.nodes.get(node.unit.id);
   if (!unit) return;
+  const ownGroups = ctx.payGroupsByUnit.get(unit.id) ?? [];
   const responsibles = responsiblesOf({ node, kind: unit.kind, inherited }, ctx.lookup);
   const people = peopleOf(unit.id, headNameOf(responsibles), ctx);
   const nextPath = [...path, { id: unit.id, name: unit.name }];
@@ -335,10 +396,18 @@ function flatten({ node, site, path, inherited }: Placing, ctx: Flattener) {
     teams: ctx.teamsByUnit.get(unit.id) ?? [],
     zones: ctx.zonesByUnit.get(unit.id) ?? 0,
     history: ctx.historyByUnit.get(unit.id) ?? [],
+    payGroups: appliedGroups({ node, own: ownGroups, inherited: inheritedGroups }, ctx.people),
   });
   const passDown = inheritable(responsibles, unit.name);
+  const groupsDown = [
+    ...inheritedGroups,
+    ...ownGroups.map((group) => ({ group, from: unit.name })),
+  ];
   for (const child of node.children) {
-    flatten({ node: child, site, path: nextPath, inherited: passDown }, ctx);
+    flatten(
+      { node: child, site, path: nextPath, inherited: passDown, inheritedGroups: groupsDown },
+      ctx,
+    );
   }
 }
 
@@ -379,6 +448,7 @@ export function buildWorkspace(input: WorkspaceInput): Workspace {
     teamsByUnit: groupBy(input.org.teams, (team) => team.orgUnitId),
     zonesByUnit: countBy(input.org.zones, (zone) => zone.orgUnitId),
     historyByUnit: groupBy(input.org.history, (entry) => entry.unitId),
+    payGroupsByUnit: groupBy(input.org.payGroups, (group) => group.unitId),
     out: [],
   };
   const tree = buildOrgTree({
@@ -388,7 +458,7 @@ export function buildWorkspace(input: WorkspaceInput): Workspace {
   });
   for (const site of tree) {
     for (const root of site.units) {
-      flatten({ node: root, site, path: [], inherited: new Map() }, ctx);
+      flatten({ node: root, site, path: [], inherited: new Map(), inheritedGroups: [] }, ctx);
     }
   }
   const unassigned = people.get(null) ?? [];

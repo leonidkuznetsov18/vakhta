@@ -122,7 +122,7 @@ function SlotPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" size="sm" variant={assigned ? 'ghost' : 'outline'}>
+        <Button type="button" size="xs" variant={assigned ? 'ghost' : 'outline'}>
           {!assigned && <UserRoundPlusIcon aria-hidden="true" />}
           {assigned ? text.slots.replace : text.slots.assign}
         </Button>
@@ -171,8 +171,8 @@ function SlotIdentity({ item }: { readonly item: ResponsibleInfo }) {
   }
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <UserAvatar name={info.name} email={info.id} image={null} className="size-7" />
-      <span className="flex min-w-0 flex-col">
+      <UserAvatar name={info.name} email={info.id} image={null} className="size-6" />
+      <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
         <span className="truncate text-sm font-medium">{info.name}</span>
         <span className="truncate text-xs text-muted-foreground">{slotNote(item)}</span>
       </span>
@@ -201,11 +201,13 @@ function SlotRow({
   readonly pickerOpen: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 items-center gap-x-3 gap-y-1 sm:grid-cols-[11rem_minmax(0,1fr)_auto]">
-      <span className="text-xs font-medium text-muted-foreground">{text.slots[item.slot]}</span>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 sm:grid-cols-[10rem_minmax(0,1fr)_auto]">
+      <span className="col-span-2 text-[11px] text-muted-foreground sm:col-span-1 sm:text-xs">
+        {text.slots[item.slot]}
+      </span>
       <SlotIdentity item={item} />
       {editable && (
-        <span className="flex items-center gap-1 sm:justify-end">
+        <span className="flex items-center justify-end gap-0.5">
           <SlotPicker
             row={row}
             item={item}
@@ -214,7 +216,7 @@ function SlotRow({
             defaultOpen={pickerOpen}
           />
           {item.info.state !== MasterState.MISSING && item.inheritedFrom === null && (
-            <Button type="button" size="sm" variant="ghost" onClick={onClear}>
+            <Button type="button" size="xs" variant="ghost" onClick={onClear}>
               {text.slots.clear}
             </Button>
           )}
@@ -247,13 +249,13 @@ export function ResponsiblesBlock({
   return (
     <section
       aria-label={text.slots.heading}
-      className="flex flex-col gap-3 rounded-lg border border-border p-3"
+      className="flex flex-col gap-1.5 rounded-lg border border-border px-2.5 py-2"
     >
       <h3 className="flex items-center gap-1 text-sm font-medium">
         {text.slots.heading}
         <InfoTip text={text.slots.hint} />
       </h3>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         {row.responsibles.map((item) => (
           <SlotRow
             key={item.slot}

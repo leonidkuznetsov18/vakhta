@@ -2,7 +2,7 @@ import type { SiteView } from '@vakhta/contracts';
 import { Building2Icon, TriangleAlertIcon, UserRoundXIcon, UsersRoundIcon } from 'lucide-react';
 import { cn } from 'cn';
 import { UserAvatar } from '@/components/app/avatar';
-import { SelectField } from '@/components/app/fields';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { StateFilter } from '@/shared/ui/state-filter';
 import { TableSearch } from '@/shared/ui/table-search';
 import { UNASSIGNED_KEY, type PersonHit, type WorkspaceTotals } from '../../model/workspace';
@@ -38,7 +38,7 @@ function Stat({ icon: Icon, label, value, tone = 'neutral', onClick, active = fa
   const iconClass = warn ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground';
   const body = (
     <>
-      <Icon aria-hidden="true" className={cn('size-4 shrink-0', iconClass)} />
+      <Icon aria-hidden="true" className={cn('size-3.5 shrink-0', iconClass)} />
       <span className="text-muted-foreground">{label}</span>
       <span
         className={cn('font-semibold tabular-nums', warn && 'text-orange-700 dark:text-orange-300')}
@@ -47,12 +47,13 @@ function Stat({ icon: Icon, label, value, tone = 'neutral', onClick, active = fa
       </span>
     </>
   );
+  // A plain count is text; only a count that is also a filter gets a chip to press.
+  if (!onClick) return <span className="flex items-center gap-1 text-[13px]">{body}</span>;
   const className = cn(
-    'flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm',
+    'flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[13px]',
     warn && 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
     active && 'ring-2 ring-ring/50',
   );
-  if (!onClick) return <span className={className}>{body}</span>;
   return (
     <button
       type="button"
@@ -82,7 +83,11 @@ export function Summary({
   readonly onSelect: (key: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2" role="group" aria-label={text.title}>
+    <div
+      className="flex flex-wrap items-center gap-x-3 gap-y-1"
+      role="group"
+      aria-label={text.title}
+    >
       <Stat icon={Building2Icon} label={text.summary.units} value={totals.units} />
       <Stat icon={UsersRoundIcon} label={text.summary.employees} value={totals.employees} />
       <Stat
@@ -115,16 +120,21 @@ export function Toolbar({
   readonly onChange: (filter: ListFilter) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-end gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       {sites.length > 1 && (
-        <SelectField
-          label={text.filters.site}
+        <NativeSelect
+          aria-label={text.filters.site}
           value={filter.siteId}
-          onChange={(siteId) => onChange({ ...filter, siteId })}
-          placeholder={text.filters.allSites}
-          options={sites.map((site) => ({ value: site.id, label: site.name }))}
-          className="w-full sm:w-56"
-        />
+          onChange={(event) => onChange({ ...filter, siteId: event.target.value })}
+          className="w-auto max-w-48"
+        >
+          <NativeSelectOption value="">{text.filters.allSites}</NativeSelectOption>
+          {sites.map((site) => (
+            <NativeSelectOption key={site.id} value={site.id}>
+              {site.name}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
       )}
       <StateFilter
         label={text.filters.all}
@@ -137,7 +147,7 @@ export function Toolbar({
         onChange={(query) => onChange({ ...filter, query })}
         label={text.search.label}
         placeholder={text.search.placeholder}
-        className="w-full sm:w-72"
+        className="min-w-0 flex-1 sm:max-w-72"
       />
     </div>
   );
@@ -163,7 +173,7 @@ export function PeopleHits({
             <button
               type="button"
               onClick={() => onPick(hit)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
             >
               <UserAvatar
                 name={hit.person.fullName}

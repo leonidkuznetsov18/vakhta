@@ -119,8 +119,10 @@ function ChoiceField({
   readonly options: readonly { readonly id: string; readonly name: string }[];
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={id} className="text-xs">
+        {label}
+      </Label>
       <NativeSelect id={id} value={value} onChange={(event) => onChange(event.target.value)}>
         <NativeSelectOption value="">{blank}</NativeSelectOption>
         {options.map((option) => (
@@ -187,8 +189,8 @@ function ConfirmStep({ mode, people, target, positions, today, onBack, onConfirm
   const confirm = () =>
     onConfirm({ unitId: target.unit.id, positionId, teamId: teamId || null, validFrom });
   return (
-    <div className="flex flex-col gap-3 p-3">
-      <div className="flex items-center gap-2 text-sm">
+    <div className="flex flex-col gap-2 p-2.5">
+      <div className="flex items-center gap-1.5 text-sm">
         <span className="min-w-0 truncate">
           {people.length > 1
             ? fill(text.people.selected, { n: people.length })
@@ -263,8 +265,8 @@ export function MovePopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0" aria-label={title}>
-        <p className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">{title}</p>
+      <PopoverContent align="end" className="w-72 p-0" aria-label={title}>
+        <p className="border-b px-2.5 py-1.5 text-xs font-medium text-muted-foreground">{title}</p>
         {target ? (
           <ConfirmStep
             mode={mode}

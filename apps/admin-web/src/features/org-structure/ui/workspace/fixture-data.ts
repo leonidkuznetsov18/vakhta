@@ -4,6 +4,7 @@ import {
   ResponsibleSlot,
   type HistoryEntry,
   type OrgNodeView,
+  type PayGroupAttachment,
   type ResponsibleAssignment,
 } from '../../model/org-node';
 import type { WorkspaceOrg } from '../../model/workspace';
@@ -437,6 +438,45 @@ const history: HistoryEntry[] = [
   },
 ];
 
+const payGroups: PayGroupAttachment[] = [
+  {
+    id: 'pg-1',
+    unitId: UNIT.production,
+    name: 'ЗП оператора',
+    version: 2,
+    validFrom: '2026-02-01',
+    draftVersion: null,
+    positions: ['Оператор'],
+  },
+  {
+    id: 'pg-2',
+    unitId: UNIT.production,
+    name: 'ЗП наладчика',
+    version: 3,
+    validFrom: '2026-06-01',
+    draftVersion: 4,
+    positions: ['Наладчик'],
+  },
+  {
+    id: 'pg-3',
+    unitId: UNIT.lids,
+    name: 'Мастера цеха Крышки',
+    version: 1,
+    validFrom: '2026-03-01',
+    draftVersion: null,
+    positions: ['Мастер участка', 'Начальник цеха'],
+  },
+  {
+    id: 'pg-4',
+    unitId: UNIT.service,
+    name: 'ЗП склада и сервиса',
+    version: 1,
+    validFrom: '2026-01-01',
+    draftVersion: null,
+    positions: ['Кладовщик', 'Электрик'],
+  },
+];
+
 export const org: WorkspaceOrg = {
   sites: [
     { id: SITE_MAIN, code: 'main', name: 'Основная площадка', timezone: 'Europe/Kyiv' },
@@ -445,6 +485,7 @@ export const org: WorkspaceOrg = {
   orgUnits: nodeSeeds.map(node),
   responsibles,
   history,
+  payGroups,
   positions: [
     { id: POSITION.operator, code: 'OPERATOR', name: 'Оператор' },
     { id: POSITION.adjuster, code: 'ADJUSTER', name: 'Наладчик' },

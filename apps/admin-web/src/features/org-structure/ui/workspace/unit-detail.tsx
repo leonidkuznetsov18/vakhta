@@ -28,6 +28,7 @@ import { formatDate } from '@/lib/format';
 import { OrgUnitKind, type ResponsibleSlot } from '../../model/org-node';
 import type { WorkspacePerson, WorkspaceUnit } from '../../model/workspace';
 import { PeopleTable, type MoveRequest, type PeopleDemo } from './people-table';
+import { PayTermsBlock } from './pay-terms-block';
 import { ResponsiblesBlock } from './responsibles-block';
 import { fill, text } from './text';
 
@@ -175,11 +176,11 @@ function UnitHeader({
   const childIds = new Set(row.childIds);
   const children = units.filter((unit) => childIds.has(unit.unit.id));
   return (
-    <header className="flex flex-col gap-2">
+    <header className="flex flex-col gap-1">
       <Breadcrumb row={row} onSelect={actions.onSelect} />
       <div className="flex flex-wrap items-start gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold [overflow-wrap:anywhere]">
+          <h2 className="flex flex-wrap items-center gap-2 text-base font-semibold [overflow-wrap:anywhere]">
             {row.unit.name}
             <StatusPill tone="neutral">{text.kinds[row.unit.kind]}</StatusPill>
           </h2>
@@ -198,7 +199,7 @@ function UnitHeader({
         )}
       </div>
       {children.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <div className="flex flex-wrap items-center gap-1 text-xs">
           <Muted className="text-xs">{text.unit.children}:</Muted>
           {children.map((child) => (
             <StatusPill key={child.unit.id} tone="neutral" asChild>
@@ -274,7 +275,7 @@ export function UnitDetail({
   readonly actions: DetailActions;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-3">
       <UnitHeader
         row={row}
         units={units}
@@ -290,7 +291,8 @@ export function UnitDetail({
         onClear={(slot) => actions.onClearResponsible(row.unit.id, slot)}
         pickerSlot={demo.slotPicker ?? null}
       />
-      <section aria-label={text.unit.employees} className="flex flex-col gap-2">
+      <PayTermsBlock row={row} onWhereUsed={() => undefined} />
+      <section aria-label={text.unit.employees} className="flex flex-col gap-1.5">
         <h3 className="flex items-center gap-1.5 text-sm font-medium">
           <UsersRoundIcon aria-hidden="true" className="size-4 text-muted-foreground" />
           {text.unit.employees}
@@ -338,9 +340,9 @@ export function UnassignedDetail({
   readonly actions: Pick<DetailActions, 'onMove'>;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <header className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">{text.list.unassigned}</h2>
+    <div className="flex min-w-0 flex-col gap-3">
+      <header className="flex flex-col gap-0.5">
+        <h2 className="text-base font-semibold">{text.list.unassigned}</h2>
         <Muted className="text-xs">{fill(text.list.people, { n: people.length })}</Muted>
       </header>
       {people.length > 0 && (

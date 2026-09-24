@@ -321,3 +321,49 @@ engineering memory. The states it demonstrates map to: tree and counts (US1 pict
 responsibles with states (AC-005–AC-007), move with effective date (AC-014), bulk placement
 (AC-015), node creation with kind (AC-009), history (AC-010), archive blocked (AC-011), read-only
 (AC-019), mobile (Edge Cases).
+
+## Addendum 2026-09-24: alignment with the payroll TZ v0.1
+
+The owner supplied "ТЗ учёт времени и зарплата v0.1" (редакция 0.10) after this spec was drafted.
+Its chapter 2 (TREE, RESP, ORG) and chapter 4 (CFG) describe the structure the payroll centre
+expects. The following changes to the assumptions above make this spec compatible; each is a
+delta, the rest stands.
+
+- **A1 (kinds)** — ORG-02 asks for configurable node types, skipped levels and an acceptance tree
+  of at least six levels. Change: `org_unit_kinds` becomes a per-tenant catalogue (code, name,
+  order) seeded with Подразделение / Цех / Участок; the "parent of the kind above" rule becomes
+  "parent of any kind with a lower order"; depth is not limited. The three default kinds keep the
+  prototype and the labels.
+- **TREE-01/03/05 (versions, aggregates)** — already covered by FR-001 (`org_unit_versions`) and
+  the history section (R40). Add to FR-005: `headcount` returns `{people, assignments}` with
+  people counted as distinct employees across the subtree (TREE-05), and the panel shows both
+  when they differ. Add to FR-006: moving a node returns an impact preview (affected assignments,
+  responsible slots, grants, open schedule versions) before the write (TREE-03, PROC-06).
+- **TREE-04 (assignments at any node, shares)** — a person may be placed in a division or a shop
+  directly (already allowed) and may hold several concurrent assignments with shares; the people
+  table shows the share when it is below 100 %. The data lives in spec 015 (assignments), not here.
+- **ORG-03 (employer separate from the tree)** — the employer is an attribute of the employment,
+  never of the node; a node may contain assignments of several employers. Nothing changes in
+  this spec's tables; spec 015 adds `employers` and `employments`.
+- **RESP-02/03/05 (responsibility levels)** — the three slots of A2 are the first entries of a
+  configurable _responsibility level_ catalogue (RESP-05: code, name, scope, required results,
+  escalation order, deputy). Change: `org_unit_responsibles.slot` references
+  `responsibility_levels.code` instead of a fixed enum; the seed holds HEAD, SHIFT_MASTER_DAY,
+  SHIFT_MASTER_NIGHT; a deputy column (`deputy_employee_id`) is added. Holding a slot never pays
+  by itself (RESP-03): a supplement is a component in spec 015.
+- **CFG-02/04 (node as a settings layer)** — a node may carry own values for parameters
+  (schedule template, pay group attachment, point price) that its subtree inherits. Change: FR-005
+  returns for each node the list of attached pay groups with `source: own | inherited(nodeId)`;
+  the detail shows the block «Условия оплаты» (spec 015, AC-012).
+- **Views R35–R40** — R40 (structure history) and R39 (responsibility matrix: node × slot ×
+  person × deputy, missing = blocked) are this spec's; R36/R37 (sources of settings, impact of a
+  change) are spec 015's; R35/R38 belong to the payroll centre and are out of scope.
+- **INT-01/02 (migration of the existing Vakhta)** — the TZ expects the current units, people,
+  positions, events and points to be mapped to the centre's objects with external keys and
+  versions; FR-001's migration keeps `org_units.id` stable and records the migration as the first
+  node version, so later mapping needs no renumbering.
+
+The prototype of this spec already shows: the tree with kinds and subtree counts, the three
+responsible slots with inheritance, node history (R40), dated moves and archive. Not shown yet:
+the responsibility matrix (R39), the move impact preview, and the pay-terms block (spec 015's
+prototype).
