@@ -547,6 +547,45 @@ describe('requests: маршрути, рішення, нова версія гр
     ).toEqual([expect.objectContaining({ status: 'PUBLISHED' })]);
   });
 
+  it('a swap counterpart must be one the bot offers: another active employee of the unit', async () => {
+    const published = await testDb.db.select().from(shiftAssignments);
+    const ivanovOther = published.find(
+      (a) => a.employeeId === ivanov && a.businessDate.endsWith('-07'),
+    );
+    if (!ivanovOther) throw new Error('Missing fixture shift');
+    const swap = (counterpartEmployeeId: string, counterpartAssignmentId: string) =>
+      service.create(
+        ivanov,
+        {
+          type: 'SWAP',
+          assignmentId: ivanovShift,
+          counterpartEmployeeId,
+          counterpartAssignmentId,
+          comment: 'Поменяемся',
+          idempotencyKey: key(),
+        },
+        employeeActor(ivanov),
+      );
+    const refused = { code: 'SWAP_COUNTERPART_NOT_ALLOWED' };
+    // Crafted callbacks: the requester himself, a blocked colleague, a colleague of another unit.
+    await expect(swap(ivanov, ivanovOther.id)).rejects.toMatchObject(refused);
+    await testDb.db.update(employees).set({ status: 'BLOCKED' }).where(eq(employees.id, petrova));
+    await expect(swap(petrova, petrovaShift)).rejects.toMatchObject(refused);
+    await testDb.db.update(employees).set({ status: 'ACTIVE' }).where(eq(employees.id, petrova));
+    const [otherUnit] = await testDb.db
+      .insert(orgUnits)
+      .values({ siteId, name: 'Склад' })
+      .returning();
+    if (!otherUnit) throw new Error('Missing unit');
+    await testDb.db
+      .update(shiftAssignments)
+      .set({ orgUnitId: otherUnit.id })
+      .where(eq(shiftAssignments.id, petrovaShift));
+    await expect(swap(petrova, petrovaShift)).rejects.toMatchObject(refused);
+    // Candidates are listed only for the requester's own shift.
+    expect(await service.swapCandidates(petrova, ivanovShift)).toEqual([]);
+  });
+
   it('обмін змінами: згода другого працівника, потім майстер і керівник; версія міняє працівників місцями', async () => {
     const created = await service.create(
       ivanov,

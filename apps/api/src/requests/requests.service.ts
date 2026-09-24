@@ -32,6 +32,7 @@ import {
   sites,
   sql,
   type Database,
+  type SQL,
   type DbOrTx,
   type Transaction,
   wellbeingCheckins,
@@ -92,6 +93,33 @@ type RequestRow = typeof requests.$inferSelect;
 type AssignmentRow = typeof shiftAssignments.$inferSelect;
 
 const OPEN = ['SUBMITTED', 'IN_REVIEW'] as const;
+
+const SWAP_WINDOW_DAYS = 14;
+
+/** Refusals of a swap request; clients localize by code. */
+const SwapError = { COUNTERPART_NOT_ALLOWED: 'SWAP_COUNTERPART_NOT_ALLOWED' } as const;
+
+type SwapCommand = Extract<CreateRequestCommand, { type: 'SWAP' }>;
+
+/**
+ * An upcoming published, planned shift of another active employee of the same unit: a swap
+ * counterpart. The bot lists only the next SWAP_WINDOW_DAYS; that bound is a listing limit.
+ * Joins schedule_versions and employees.
+ */
+function swapCandidateCondition(
+  orgUnitId: string,
+  requesterId: string,
+  now: Date,
+): SQL | undefined {
+  return and(
+    eq(shiftAssignments.orgUnitId, orgUnitId),
+    eq(shiftAssignments.status, 'PLANNED'),
+    eq(scheduleVersions.status, 'PUBLISHED'),
+    ne(shiftAssignments.employeeId, requesterId),
+    eq(employees.status, 'ACTIVE'),
+    gte(shiftAssignments.planStartAt, now),
+  );
+}
 
 type AppealCommand = Extract<CreateRequestCommand, { type: 'APPEAL' }>;
 
@@ -759,7 +787,9 @@ export class RequestsService {
     const [mine] = await this.db
       .select()
       .from(shiftAssignments)
-      .where(eq(shiftAssignments.id, assignmentId))
+      .where(
+        and(eq(shiftAssignments.id, assignmentId), eq(shiftAssignments.employeeId, employeeId)),
+      )
       .limit(1);
     if (!mine) return [];
     const rows = await this.db
@@ -769,13 +799,11 @@ export class RequestsService {
       .innerJoin(employees, eq(shiftAssignments.employeeId, employees.id))
       .where(
         and(
-          eq(shiftAssignments.orgUnitId, mine.orgUnitId),
-          eq(shiftAssignments.status, 'PLANNED'),
-          eq(scheduleVersions.status, 'PUBLISHED'),
-          ne(shiftAssignments.employeeId, employeeId),
-          eq(employees.status, 'ACTIVE'),
-          gte(shiftAssignments.planStartAt, now),
-          lte(shiftAssignments.planStartAt, new Date(now.getTime() + 14 * 86_400_000)),
+          swapCandidateCondition(mine.orgUnitId, employeeId, now),
+          lte(
+            shiftAssignments.planStartAt,
+            new Date(now.getTime() + SWAP_WINDOW_DAYS * 86_400_000),
+          ),
         ),
       )
       .orderBy(asc(employees.fullName))
@@ -833,13 +861,9 @@ export class RequestsService {
       base.assignmentId = a.id;
     }
     if (cmd.type === 'SWAP') {
-      const theirs = await this.ownedAssignment(
-        tx,
-        cmd.counterpartEmployeeId,
-        cmd.counterpartAssignmentId,
-      );
+      const theirs = await this.swapCounterpartAssignment(tx, cmd, { employeeId, now });
       base.counterpartEmployeeId = cmd.counterpartEmployeeId;
-      base.payload = { counterpartAssignmentId: theirs.id };
+      base.payload = { counterpartAssignmentId: theirs };
     }
     if (cmd.type === 'LATE' || cmd.type === 'EARLY_LEAVE') base.payload = { minutes: cmd.minutes };
     if (cmd.type === 'EXTRA_SHIFT') {
@@ -915,6 +939,38 @@ export class RequestsService {
     if (open)
       throw new DomainError(AppealError.ALREADY_OPEN, 409, 'An appeal of this score is open');
     return score.id;
+  }
+
+  /**
+   * The bot's counterpart choice is client-controlled, so it must be one the bot offers: the
+   * counterpart's own shift that swapCandidates would list for the requester's shift.
+   */
+  private async swapCounterpartAssignment(
+    tx: DbOrTx,
+    cmd: SwapCommand,
+    requester: { readonly employeeId: string; readonly now: Date },
+  ): Promise<string> {
+    const mine = await this.ownedAssignment(tx, requester.employeeId, cmd.assignmentId);
+    const [theirs] = await tx
+      .select({ id: shiftAssignments.id })
+      .from(shiftAssignments)
+      .innerJoin(scheduleVersions, eq(shiftAssignments.scheduleVersionId, scheduleVersions.id))
+      .innerJoin(employees, eq(shiftAssignments.employeeId, employees.id))
+      .where(
+        and(
+          eq(shiftAssignments.id, cmd.counterpartAssignmentId),
+          eq(shiftAssignments.employeeId, cmd.counterpartEmployeeId),
+          swapCandidateCondition(mine.orgUnitId, requester.employeeId, requester.now),
+        ),
+      )
+      .limit(1);
+    if (!theirs)
+      throw new DomainError(
+        SwapError.COUNTERPART_NOT_ALLOWED,
+        422,
+        'The counterpart shift is not a swap candidate',
+      );
+    return theirs.id;
   }
 
   private async ownedAssignment(
