@@ -31,6 +31,10 @@ import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
 import type { BotContext } from './bot-context.js';
+import { DocumentsService } from '../maintenance/documents.service.js';
+import { EmergencyService } from '../maintenance/emergency.service.js';
+import { MechanicWorkService } from '../maintenance/mechanic-work.service.js';
+import { WorkActionsService } from '../maintenance/work-actions.service.js';
 import { createBot, renderHomeScreen, type HomeScreenDeps } from './bot.factory.js';
 import { HomeScreenPusher } from './home-pusher.js';
 import { UpdateDedup } from './update-dedup.js';
@@ -76,6 +80,10 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly dedup: UpdateDedup,
     private readonly changes: ShiftChanges,
     private readonly tenants: TenantRuntimeRegistry,
+    private readonly mechanic: MechanicWorkService,
+    private readonly workActions: WorkActionsService,
+    private readonly emergency: EmergencyService,
+    private readonly documents: DocumentsService,
   ) {
     this.logger = createLogger({
       LOG_LEVEL: this.config.get('LOG_LEVEL', { infer: true }),
@@ -95,6 +103,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
       helpUrl: this.config.get('USER_GUIDE_URL', { infer: true }) ?? null,
       supportUrl: this.supportUrl(),
+      maintenance: this.maintenanceDeps(),
     };
     // A shift changed by a master, a terminal or a timer: the employee gets the new screen at once.
     this.pusher = new HomeScreenPusher(
@@ -173,6 +182,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       supportUrl: this.supportUrl(),
       logger: this.logger,
       runInContext: (fn) => this.inTenant(tenant.id, fn),
+      maintenance: this.maintenanceDeps(),
     });
     await bot.init();
     await this.registerCommands(bot);
@@ -228,6 +238,15 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     const runtime = this.tenants.byId(tenantId);
     if (!runtime) throw new ServiceUnavailableException('Tenant is not served');
     return this.tenants.enter(runtime, fn);
+  }
+
+  private maintenanceDeps() {
+    return {
+      mechanic: this.mechanic,
+      actions: this.workActions,
+      emergency: this.emergency,
+      documents: this.documents,
+    };
   }
 
   /** Deep link to the support assistant, when a bot is configured for it. */

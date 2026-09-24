@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   and,
-  asc,
   count,
   employees,
   eq,
@@ -11,8 +10,6 @@ import {
   maintenancePlanOperations,
   maintenancePlanVersions,
   maintenancePlans,
-  notInArray,
-  or,
   sites,
   workOrderOperationResults,
   workOrderReviews,
@@ -44,12 +41,14 @@ import { textOrNull } from '../common/text.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
+import { MediaService } from '../handover/media.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { assertMechanics } from './lookups.js';
 import { MaintenanceScheduler } from './maintenance-scheduler.js';
 
 type OrderRow = typeof workOrders.$inferSelect;
 const FINAL = [...FINAL_WORK_STATUSES];
+const MAINTENANCE_PHOTO_PURPOSE = 'maintenance';
 
 export interface EmployeeCommand {
   readonly employeeId: string;
@@ -57,11 +56,20 @@ export interface EmployeeCommand {
   readonly now?: Date;
 }
 
+/** A Telegram photo attached to an operation answer (FR-051). */
+export interface OperationPhoto {
+  readonly fileId: string;
+  readonly fileUniqueId: string;
+  readonly sizeBytes?: number | undefined;
+  readonly width?: number | undefined;
+  readonly height?: number | undefined;
+}
+
 export interface AnswerCommand extends EmployeeCommand {
   readonly ordinal: number;
   readonly result: OperationResult;
   readonly reason?: string | null;
-  readonly mediaObjectId?: string | null;
+  readonly photo?: OperationPhoto | null;
 }
 
 export interface ChangeContext {
@@ -79,6 +87,7 @@ export class WorkActionsService {
     private readonly audit: AuditLog,
     private readonly notifications: NotificationsService,
     private readonly scheduler: MaintenanceScheduler,
+    private readonly media: MediaService,
   ) {}
 
   async lock(tx: Transaction, id: string): Promise<OrderRow> {
@@ -170,34 +179,6 @@ export class WorkActionsService {
 
   // ---------- bot ----------
 
-  async myWork(employeeId: string) {
-    return this.db
-      .select({
-        id: workOrders.id,
-        number: workOrders.number,
-        type: workOrders.type,
-        status: workOrders.status,
-        title: workOrders.title,
-        plannedOn: workOrders.plannedOn,
-        dueOn: workOrders.dueOn,
-        code: equipment.code,
-        timezone: sites.timezone,
-      })
-      .from(workOrders)
-      .innerJoin(equipment, eq(equipment.id, workOrders.equipmentId))
-      .innerJoin(sites, eq(sites.id, equipment.siteId))
-      .where(
-        and(
-          notInArray(workOrders.status, FINAL),
-          or(
-            eq(workOrders.assigneeEmployeeId, employeeId),
-            eq(workOrders.leadEmployeeId, employeeId),
-          ),
-        ),
-      )
-      .orderBy(asc(workOrders.type), asc(workOrders.plannedOn), asc(workOrders.number));
-  }
-
   async start(cmd: EmployeeCommand) {
     const now = cmd.now ?? new Date();
     return this.db.transaction(async (tx) => {
@@ -238,10 +219,22 @@ export class WorkActionsService {
           ),
         );
       if (!operation) throw new DomainError('WORK_OPERATION_NOT_FOUND', 404, 'Operation not found');
+      const media = cmd.photo
+        ? await this.media.register(tx, {
+            telegramFileId: cmd.photo.fileId,
+            telegramFileUniqueId: cmd.photo.fileUniqueId,
+            uploadedBy: cmd.employeeId,
+            purpose: MAINTENANCE_PHOTO_PURPOSE,
+            sizeBytes: cmd.photo.sizeBytes,
+            width: cmd.photo.width,
+            height: cmd.photo.height,
+            now,
+          })
+        : null;
       const values = {
         result: cmd.result,
         reason: answerNeedsReason(cmd.result) ? (cmd.reason ?? null) : null,
-        mediaObjectId: cmd.mediaObjectId ?? null,
+        mediaObjectId: media?.id ?? null,
         answeredBy: cmd.employeeId,
         answeredAt: now,
       };

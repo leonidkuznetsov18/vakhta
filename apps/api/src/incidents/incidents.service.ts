@@ -362,6 +362,15 @@ export class IncidentsService {
     return row.id;
   }
 
+  /** Machines the employee may name in a report: those of the zone of their open shift (FR-060). */
+  async reportableEquipmentFor(
+    employeeId: string,
+  ): Promise<{ id: string; code: string; name: string }[]> {
+    const session = await this.shift.activeSession(employeeId);
+    if (!session?.zoneId) return [];
+    return this.zoneEquipment(session.zoneId);
+  }
+
   /** Active machines of a zone for the bot's "which equipment?" step (FR-060). */
   async zoneEquipment(zoneId: string): Promise<{ id: string; code: string; name: string }[]> {
     const [zone] = await this.db

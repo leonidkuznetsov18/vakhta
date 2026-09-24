@@ -1,5 +1,6 @@
 import type { Database } from '@vakhta/db';
 import { AuditLog } from '../src/events/audit-log.js';
+import { MediaService } from '../src/handover/media.service.js';
 import { EventStore } from '../src/events/event-store.js';
 import type { ObjectStorage } from '../src/infra/object-storage.js';
 import type { TimerScheduler } from '../src/infra/timers.queue.js';
@@ -7,6 +8,7 @@ import { DocumentsService } from '../src/maintenance/documents.service.js';
 import { EmergencyService } from '../src/maintenance/emergency.service.js';
 import { EquipmentService } from '../src/maintenance/equipment.service.js';
 import { MaintenanceScheduler } from '../src/maintenance/maintenance-scheduler.js';
+import { MechanicWorkService } from '../src/maintenance/mechanic-work.service.js';
 import { PlansService } from '../src/maintenance/plans.service.js';
 import { WorkActionsService } from '../src/maintenance/work-actions.service.js';
 import { WorkQueriesService } from '../src/maintenance/work-queries.service.js';
@@ -26,7 +28,8 @@ export function maintenanceServices(
   const audit = new AuditLog();
   const notifications = new NotificationsService();
   const scheduler = new MaintenanceScheduler(events, notifications, deps.timers);
-  const actions = new WorkActionsService(db, events, audit, notifications, scheduler);
+  const media = new MediaService(db, audit, { linkTtlSeconds: 300 }, deps.storage);
+  const actions = new WorkActionsService(db, events, audit, notifications, scheduler, media);
   const documents = new DocumentsService(db, audit, deps.storage);
   const plans = new PlansService(db, audit, events, scheduler);
   return {
@@ -35,6 +38,7 @@ export function maintenanceServices(
     plans,
     equipment: new EquipmentService(db, audit, events, documents, plans),
     queries: new WorkQueriesService(db),
+    mechanic: new MechanicWorkService(db),
     emergency: new EmergencyService(db, events, notifications, actions, deps.timers),
   };
 }

@@ -5,6 +5,7 @@ import { IdentityModule } from '../identity/identity.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { HandoverModule } from '../handover/handover.module.js';
 import { IncidentsModule } from '../incidents/incidents.module.js';
+import { MaintenanceModule } from '../maintenance/maintenance.module.js';
 import { RequestsModule } from '../requests/requests.module.js';
 import { ShiftModule } from '../shift/shift.module.js';
 import { TelegramController } from './telegram.controller.js';
@@ -21,6 +22,7 @@ import { UpdateDedup } from './update-dedup.js';
     HandoverModule,
     RequestsModule,
     BonusModule,
+    MaintenanceModule,
   ],
   controllers: [TelegramController],
   providers: [TelegramService, UpdateDedup],

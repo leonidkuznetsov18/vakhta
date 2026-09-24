@@ -51,6 +51,7 @@ import {
   incidentReasonScreen,
   incidentResultScreen,
   incidentStoppedScreen,
+  INCIDENT_CALLBACK,
   isBotShiftAction,
   counterpartScreen,
   languageScreen,
@@ -68,6 +69,12 @@ import {
   type Screen,
 } from './screens.js';
 import type { UpdateDedup } from './update-dedup.js';
+import { maintenanceComposer, type MaintenanceBotDeps } from './maintenance-bot.js';
+import {
+  EQUIPMENT_PICK_NONE,
+  equipmentPickScreen,
+  withMaintenanceEntry,
+} from './maintenance-screens.js';
 import { currentTenant } from '../infra/tenant-context.js';
 
 /** Unfinished handover and acceptance steps; live in Redis next to the problem report. */
@@ -140,7 +147,12 @@ function parsePeriod(text: string, now: Date): { from: string; to: string } | nu
 interface PendingReport {
   readonly reasonCode: string;
   readonly reasonLabel: string;
-  readonly step: 'comment' | 'photo' | 'stop';
+  readonly step: 'equipment' | 'comment' | 'photo' | 'stop';
+  /** The step after the machine is picked (spec 014, FR-060). */
+  readonly afterEquipment?: 'comment' | 'photo' | 'stop';
+  /** Machines offered at the machine step, in button order. */
+  readonly equipmentChoices?: readonly string[];
+  readonly equipmentId?: string;
   readonly comment?: string;
   readonly photoFileId?: string;
   /** Sent with the file id: the media object cannot be registered without it. */
@@ -179,6 +191,8 @@ export interface BotDeps {
   readonly logger: Logger;
   /** Runs handlers inside the owning tenant's context (polling has no request to inherit it from). */
   readonly runInContext?: (<T>(fn: () => Promise<T>) => Promise<T>) | undefined;
+  /** The mechanic's maintenance work (spec 014); absent in narrow test harnesses. */
+  readonly maintenance?: Omit<MaintenanceBotDeps, 'store' | 'logger'> | undefined;
 }
 
 /** What the home screen needs; a subset of the bot dependencies so the server can render it too. */
@@ -194,6 +208,7 @@ export type HomeScreenDeps = Pick<
   | 'supportUrl'
   | 'feed'
   | 'feedBaseUrl'
+  | 'maintenance'
 >;
 
 /**
@@ -214,6 +229,29 @@ export async function renderHomeScreen(
     deps.requests.pendingCounterpart(employee.id),
   ]);
   const shift = { ...shiftRaw, pendingHandovers: 0 };
+  const screen = homeOrShift(deps, t, {
+    employee,
+    next,
+    presence,
+    shift,
+    pendingSwaps: pendingSwaps.length,
+  });
+  const mechanic = await deps.maintenance?.mechanic.isMaintenanceStaff(employee.id);
+  return mechanic ? withMaintenanceEntry(t, screen) : screen;
+}
+
+function homeOrShift(
+  deps: HomeScreenDeps,
+  t: Messages,
+  input: {
+    readonly employee: EmployeeRecord;
+    readonly next: Awaited<ReturnType<ScheduleService['nextShift']>>;
+    readonly presence: Awaited<ReturnType<AttendanceService['openPresence']>>;
+    readonly shift: Awaited<ReturnType<ShiftService['screen']>> & { pendingHandovers: number };
+    readonly pendingSwaps: number;
+  },
+): Screen {
+  const { employee, next, presence, shift, pendingSwaps } = input;
   const timezone = next?.timezone ?? deps.defaultTimezone;
   const home = homeScreen(t, {
     employee,
@@ -221,7 +259,7 @@ export async function renderHomeScreen(
     feed: !!deps.feed && !!deps.feedBaseUrl,
     presenceSince: presence?.arrivedAt ?? null,
     timezone,
-    pendingSwaps: pendingSwaps.length,
+    pendingSwaps,
     helpUrl: deps.helpUrl ?? null,
     supportUrl: deps.supportUrl ?? null,
   });
@@ -261,6 +299,9 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     ctx.t = messages(ctx.locale);
     await next();
   });
+
+  if (deps.maintenance)
+    bot.use(maintenanceComposer({ ...deps.maintenance, store: deps.store, logger: deps.logger }));
 
   async function show(ctx: BotContext, screen: Screen): Promise<void> {
     await ctx.reply(screen.text, screen.keyboard ? { reply_markup: screen.keyboard } : undefined);
@@ -553,18 +594,52 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     if (!reason) return edit(ctx, { text: ctx.t.shift.noReasons });
     await ctx.editMessageReplyMarkup().catch(() => undefined);
-    await nextStep(ctx, {
+    const step =
+      reason.code === 'BREAKDOWN'
+        ? 'photo'
+        : reason.requiresComment
+          ? 'comment'
+          : reason.requiresPhoto
+            ? 'photo'
+            : 'stop';
+    const pending: PendingReport = {
       reasonCode: reason.code,
       reasonLabel: reason.label,
       requiresPhoto: reason.requiresPhoto || reason.code === 'BREAKDOWN',
-      step:
-        reason.code === 'BREAKDOWN'
-          ? 'photo'
-          : reason.requiresComment
-            ? 'comment'
-            : reason.requiresPhoto
-              ? 'photo'
-              : 'stop',
+      step,
+    };
+    // Spec 014, FR-060: a zone with machines asks which one right after the reason.
+    const machines = await deps.incidents.reportableEquipmentFor(ctx.employee.id);
+    if (!machines.length) return nextStep(ctx, pending);
+    await writePending(ctx, {
+      ...pending,
+      step: 'equipment',
+      afterEquipment: step,
+      equipmentChoices: machines.map((machine) => machine.id),
+    });
+    await show(
+      ctx,
+      equipmentPickScreen(ctx.t, {
+        machines,
+        cancel: { text: ctx.t.incidents.cancel, data: INCIDENT_CALLBACK.cancel },
+      }),
+    );
+  });
+
+  bot.callbackQuery(/^inc:eq:(\d{1,3}|none)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    const pending = await readPending(ctx);
+    if (pending?.step !== 'equipment' || !pending.afterEquipment)
+      return edit(ctx, { text: ctx.t.incidents.expired });
+    const choice = ctx.match[1] ?? EQUIPMENT_PICK_NONE;
+    const equipmentId =
+      choice === EQUIPMENT_PICK_NONE ? undefined : pending.equipmentChoices?.[Number(choice)];
+    await ctx.editMessageReplyMarkup().catch(() => undefined);
+    await nextStep(ctx, {
+      ...pending,
+      step: pending.afterEquipment,
+      ...(equipmentId ? { equipmentId } : {}),
     });
   });
 
@@ -602,6 +677,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         {
           reasonCode: pending.reasonCode,
           stoppedWork: ctx.match[1] === '1',
+          ...(pending.equipmentId ? { equipmentId: pending.equipmentId } : {}),
           idempotencyKey: `tg:${ctx.update.update_id}`,
           ...(pending.comment ? { comment: pending.comment } : {}),
           ...(pending.photoFileId ? { photoFileId: pending.photoFileId } : {}),
