@@ -51,6 +51,7 @@ import {
   type ShiftAction,
   type UserShiftAction,
   type ShiftSnapshot,
+  type ShiftState,
   type ShiftSummary,
   type TransitionContext,
   type TransitionEffect,
@@ -148,6 +149,16 @@ const TERMINAL = [...TERMINAL_STATES];
 
 type ShiftReasonKind = 'DOWNTIME' | 'EMERGENCY';
 
+const DOWNTIME_STATE: ShiftState = 'DOWNTIME';
+const RESUME_ACTION: ShiftAction = 'RESUME';
+
+/** What the interval opened by a transition records. */
+interface IntervalOpening {
+  readonly action: ShiftAction;
+  readonly next: ShiftState;
+  readonly reasonCode: string | null;
+}
+
 /** The directory a reason-carrying action takes its code from (FR-DWN-01). */
 const REASON_KIND_BY_ACTION: Partial<Record<ShiftAction, ShiftReasonKind>> = {
   START_DOWNTIME: 'DOWNTIME',
@@ -221,7 +232,7 @@ export class ShiftService {
     const offerResumeIntoDowntime =
       active !== null &&
       (active.state === 'BREAK' || active.state === 'MEAL' || active.state === 'SERVICE_TIME') &&
-      (await this.previousClosedState(this.db, active.id)) === 'DOWNTIME';
+      (await this.previousInterval(this.db, active.id))?.state === DOWNTIME_STATE;
     return {
       session,
       presenceOpen: presence !== null,
@@ -948,6 +959,13 @@ export class ShiftService {
     if (!result.ok) return this.fail(result.error, await this.sessionView(tx, session.id), now);
     if (!(await this.isKnownReason(tx, cmd)))
       return this.fail('REASON_UNKNOWN', await this.sessionView(tx, session.id), now);
+    const openedReason = await this.openedReason(tx, session.id, {
+      action: cmd.action,
+      next: result.next.state,
+      reasonCode: cmd.reasonCode ?? null,
+    });
+    if (openedReason === undefined)
+      return this.fail('ACTION_NOT_ALLOWED', await this.sessionView(tx, session.id), now);
 
     const effectiveEnd = meta.effectiveEndedAt ?? now;
     let closed: IntervalRow | undefined;
@@ -1015,7 +1033,7 @@ export class ShiftService {
           state: result.next.state,
           startedAt: now,
           resumeState: result.next.resumeState,
-          reasonCode: cmd.reasonCode ?? null,
+          reasonCode: openedReason,
         })
         .returning();
       opened = row ?? null;
@@ -1314,6 +1332,23 @@ export class ShiftService {
     return row !== undefined;
   }
 
+  /**
+   * The reason the opened interval records, or undefined when the opening is refused. RESUME into
+   * downtime (FR-DWN-06) continues the downtime the break interrupted, with its reason; the bot's
+   * flag is client-controlled, so without an interrupted downtime there is nothing to continue.
+   */
+  private async openedReason(
+    tx: DbOrTx,
+    sessionId: string,
+    opening: IntervalOpening,
+  ): Promise<string | null | undefined> {
+    if (opening.action !== RESUME_ACTION || opening.next !== DOWNTIME_STATE)
+      return opening.reasonCode;
+    const interrupted = await this.previousInterval(tx, sessionId);
+    if (interrupted?.state !== DOWNTIME_STATE) return undefined;
+    return interrupted.reasonCode;
+  }
+
   private async replay(
     tx: DbOrTx,
     employeeId: string,
@@ -1441,14 +1476,18 @@ export class ShiftService {
   }
 
   /** Стан інтервалу, закритого безпосередньо перед відкритим (для FR-DWN-06). */
-  private async previousClosedState(tx: DbOrTx, sessionId: string): Promise<string | null> {
+  /** The interval before the open one: what a break interrupted. */
+  private async previousInterval(
+    tx: DbOrTx,
+    sessionId: string,
+  ): Promise<{ readonly state: ShiftState; readonly reasonCode: string | null } | null> {
     const rows = await tx
-      .select({ state: activityIntervals.state })
+      .select({ state: activityIntervals.state, reasonCode: activityIntervals.reasonCode })
       .from(activityIntervals)
       .where(eq(activityIntervals.shiftSessionId, sessionId))
       .orderBy(desc(activityIntervals.startedAt))
       .limit(2);
-    return rows[1]?.state ?? null;
+    return rows[1] ?? null;
   }
 
   private async recentlyClosed(employeeId: string, now: Date): Promise<SessionRow | null> {

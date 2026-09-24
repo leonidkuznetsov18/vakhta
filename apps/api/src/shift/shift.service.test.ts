@@ -475,6 +475,36 @@ describe('shift: машина станів зміни в транзакції (�
     const resumed = await act(petrova, 'RESUME');
     expect(resumed).toMatchObject({ ok: true, session: { state: 'WORKING', resumeState: null } });
     expect(await timerJobs()).toHaveLength(3);
+    // The continued downtime keeps the reason of the one the meal interrupted.
+    const downtimes = await testDb.db
+      .select({ reasonCode: activityIntervals.reasonCode })
+      .from(activityIntervals)
+      .where(eq(activityIntervals.state, 'DOWNTIME'));
+    expect(downtimes).toEqual([{ reasonCode: 'BREAKDOWN' }, { reasonCode: 'BREAKDOWN' }]);
+  });
+
+  it('FR-DWN-06: a break entered from work cannot resume into a reasonless downtime', async () => {
+    await arrive(petrova);
+    await service.start(petrova, { idempotencyKey: key() }, meta(petrova));
+    await act(petrova, 'START_WORK');
+    await act(petrova, 'START_BREAK');
+    const before = await service.activeSession(petrova);
+    if (!before) throw new Error('Missing shift');
+    // A crafted sh:RESUME:<version>:DT callback carries the flag the screen never offered.
+    expect(await act(petrova, 'RESUME', { resumeIntoDowntime: true })).toMatchObject({
+      ok: false,
+      error: 'ACTION_NOT_ALLOWED',
+      session: { state: 'BREAK', version: before.version },
+    });
+    const downtimes = await testDb.db
+      .select()
+      .from(activityIntervals)
+      .where(eq(activityIntervals.state, 'DOWNTIME'));
+    expect(downtimes).toHaveLength(0);
+    expect(await act(petrova, 'RESUME')).toMatchObject({
+      ok: true,
+      session: { state: 'WORKING' },
+    });
   });
 
   it('FR-DWN-01: downtime and emergency exit take only an active directory reason of their kind', async () => {

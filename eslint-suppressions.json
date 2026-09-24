@@ -2991,7 +2991,7 @@
       "count": 5
     },
     "no-restricted-syntax": {
-      "count": 45
+      "count": 44
     }
   },
   "apps/api/src/support/support-bot.factory.ts": {
