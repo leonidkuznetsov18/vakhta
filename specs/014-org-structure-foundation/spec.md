@@ -408,3 +408,73 @@ The prototype of this spec already shows: the tree with kinds and subtree counts
 responsible slots with inheritance, node history (R40), dated moves and archive. Not shown yet:
 the responsibility matrix (R39), the move impact preview, and the pay-terms block (spec 015's
 prototype).
+
+## Owner answers 2026-09-24: structure and responsible people (questions 1–15)
+
+The owner answered the first fifteen discovery questions of #108. Each answer below replaces or
+narrows an assumption above; the rest of the spec stands. Questions 16–40 (moves, pay, approval,
+rollout) are still open and stay in #108 and #118.
+
+- **Q1–Q3, kinds and depth (resolves D1).** The catalogue is per tenant and deeper than three:
+  Подразделение → Цех → Участок plus **Смена** (a standing crew that works a rotation, e.g.
+  «Смена А» in a warehouse) and **Бригада** (a brigade attached to a section or a machine).
+  Levels may be skipped (Склад directly under a division; Склад → Смена → Бригада). People may
+  be placed in any node. Change: A1 becomes the configurable `org_unit_kinds` catalogue of the
+  addendum, seeded with five kinds in this order; the parent rule is "any kind with a lower
+  order"; depth unlimited. Open: whether brigade nodes replace today's `teams` directory (Q1a)
+  and how a machine is named while equipment stays out of scope (Q1b).
+- **Q4, sites (changes A1).** Two sites now, up to a hundred in perspective; one division may
+  span several sites (a warehouse division with finished goods, materials and spare parts stores
+  on different sites). Change: `site_id` is set per node and is **not** inherited; a node above
+  several sites carries no site; `ORG_UNIT_SITE_MISMATCH` (AC-009) is dropped; the site filter
+  shows a node when it or any descendant is on the site, and the site picker is searchable.
+- **Q6, history (confirms A3).** Wanted, with a later wish to compare the performance of two
+  structure versions as diagrams. Change: none now; facts keep the node version they were recorded
+  against so a later report can compare periods. The comparison view is out of this change.
+- **Q7, Q10, Q11.** Defaults accepted: archive, never delete; inherit the ancestor's shift master;
+  fall back to the head, then the production head.
+- **Q8–Q9, responsibility roles (changes A2, confirms RESP-05).** Roles differ by process: a
+  warehouse has зав. склада → комплектовщик → грузчик, production has зав. производства →
+  начальник цеха → мастер смены → механик/наладчик → оператор → фасовщик, and "the standard does
+  not always fit". Shift masters are day, night and substitute; **a night shift may legitimately
+  have no master or setter**; shift types beyond day and night exist per process; a master is also
+  an ordinary employee with a working assignment. Change: the responsibility-level catalogue of
+  the addendum is confirmed; each level carries `required` per node kind, and only a missing
+  **required** level puts the node in an attention state (a night without a master is not a
+  defect by default); slot codes for shift masters follow the tenant's shift types instead of a
+  fixed DAY/NIGHT pair. Open: whether the substitute master is a standing slot or a dated
+  replacement (Q8a), and which levels are required where (Q8b).
+- **Q12–Q13.** One person may hold several nodes; a deputy per responsible is needed in a large
+  structure. Change: `deputy_employee_id` stays (addendum); the section counts people holding
+  several nodes so overburden is visible.
+- **Q14, who approves an employee's request (new, crosses into the requests feature).** By
+  structure and by request kind: vacation and sick leave need at least two approvers because
+  they drive planning; lateness and small matters go to the manager one level above the
+  requester, with the request recorded. Change: `managerOf` stays "the head of the node unless
+  overridden"; the requests feature gets a route per request kind (two approvers for VACATION and
+  SICK_LEAVE, one for the rest) in its own change. Open: which two people approve, and whether
+  in sequence or in parallel (Q14a).
+- **Q15, who edits the structure (changes the ADMIN-only assumption).** HR or the director builds
+  the global structure and appoints heads; heads then manage their own subtree. Change: a node
+  head with panel access may create, rename and move nodes, place people and assign responsibles
+  **inside their subtree**; AC-012 extends from "site-scoped ADMIN" to "subtree of the head";
+  every such write is audited with the actor. Open: whether HR confirms a head's change (Q15a).
+
+Follow-up questions for the owner, in the same dry form:
+
+- Q1a. Does «Бригада» in the tree replace Справочники → Бригади, so that today's brigades become
+  nodes under their section?
+- Q1b. A brigade attached to a machine: is the machine's name in the brigade's name enough for
+  now, or does a machine need to be its own object later?
+- Q1c. Is «Смена» in the tree a standing crew (Зміна А / Зміна Б) that rotates by the schedule?
+  Does it work one shift template or its own?
+- Q4a. When a division spans sites, is the site set on each lower node and left empty on the
+  division?
+- Q8a. Is the substitute master a permanent person on the node or an appointment for specific
+  dates?
+- Q8b. On which node kinds and shift types is a master mandatory, so that only those show a
+  warning?
+- Q14a. For vacation and sick leave, which two people approve (head and planner? head and HR?),
+  and in sequence or in parallel?
+- Q15a. May a head change their subtree without HR confirmation, or does HR confirm afterwards?
+- Q5 remains unanswered: how often the structure changes.
