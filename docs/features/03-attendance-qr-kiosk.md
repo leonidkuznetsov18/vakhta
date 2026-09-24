@@ -34,6 +34,25 @@ rotations means offline. "Активен" (not disabled) and "Сопряжён �
 token) never mean online on their own. The "Связь" filter narrows the list; the Overview cards
 "Терминал без связи" and "unpaired terminals" open it already filtered.
 
+## Staying connected 24/7
+
+A paired kiosk page that stays open keeps its connection without anyone touching it:
+
+- The pairing link works once. The kiosk removes the code from its address at once, and a spent
+  code opened again (a saved start page, a reload) never replaces a working pairing: the kiosk keeps
+  its stored token and shows the QR. Only "Код подключения" in the panel replaces a pairing.
+- The next QR is due at a wall-clock time, so a hidden or throttled browser tab (timers run once a
+  minute) still renews it inside the three-rotation window. Returning to the tab, waking the device,
+  restoring the page or the network coming back renews the QR at once.
+- A failed request retries after 5, 10, 20, then every 30 seconds with jitter; requests time out
+  after 15 seconds. An unreachable tenant configuration is retried in the page every 30 seconds.
+- Releases: the API deploys with a health check and no gap; the open kiosk checks every 10 minutes
+  whether a new kiosk release is published and reloads into it right after a successful QR renewal.
+  The device token is kept across reloads (persistent storage is requested).
+
+What the page cannot do by itself is run while the browser has frozen, put to sleep or discarded
+it, or while the device sleeps. Device setup is in `docs/runbooks/kiosk-device.md`.
+
 ## Reserve channel
 
 If the terminal is down, the shift master opens the shift from the panel ("Оперативная смена →

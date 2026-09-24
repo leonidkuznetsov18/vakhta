@@ -2,6 +2,7 @@ import { tenantConfig } from '@vakhta/tenant-client';
 import QRCode from 'qrcode';
 import { KioskChallengeResponse, TerminalPaired } from '@vakhta/contracts';
 import { messages, resolveLocale, LOCALES, type Locale } from '@vakhta/i18n';
+import { checkForRelease, releaseIsWaiting } from './self-update';
 
 /**
  * The terminal shows a QR with a deep link to the bot and refreshes it every rotationSeconds (FR-QR-01).
@@ -139,7 +140,30 @@ async function keepAwake(): Promise<void> {
   }
 }
 
-let countdown = 0;
+/**
+ * When the next QR is due, as a wall-clock instant. A background or throttled tab runs its timers
+ * rarely (once a minute or less), so a per-second counter would stretch one rotation into many
+ * minutes; a deadline is met at the first tick after it passes.
+ */
+let refreshAt = 0;
+
+function refreshIn(seconds: number): void {
+  refreshAt = Date.now() + seconds * 1000;
+}
+
+/**
+ * Retries back off (5, 10, 20, then every 30 s) with jitter, so many kiosks behind one site
+ * connection do not hit the API in lockstep after an outage. 30 s stays well inside the three
+ * rotations the panel waits before it calls a terminal offline.
+ */
+const RETRY_BASE_SECONDS = 5;
+const RETRY_MAX_SECONDS = 30;
+let failures = 0;
+
+function retryDelaySeconds(): number {
+  const delay = Math.min(RETRY_MAX_SECONDS, RETRY_BASE_SECONDS * 2 ** failures);
+  return delay * (0.8 + Math.random() * 0.4);
+}
 
 /**
  * A tablet can stand at more than one terminal, so it keeps every terminal it has paired: id, name
@@ -266,7 +290,8 @@ function showProblem(text: string, allowRepair = false): void {
   el.offline.textContent = text;
   el.offline.hidden = false;
   el.repair.hidden = !allowRepair;
-  countdown = 10;
+  refreshIn(retryDelaySeconds());
+  failures += 1;
 }
 
 function showPairing(error?: string): void {
@@ -283,78 +308,148 @@ function showPairing(error?: string): void {
   el.pairCode.focus();
 }
 
-async function pair(code: string): Promise<void> {
+/**
+ * A pairing code works once, so a pairing link must not outlive its first use: the code leaves the
+ * address at once. Otherwise every reload (sleeping tab, restart, power loss) resends the spent code,
+ * gets 401 and replaces a working QR with the pairing form.
+ */
+function takeLinkCode(): string | null {
+  const code = new URLSearchParams(location.hash.replace(/^#/, '')).get('pair');
+  if (!code) return null;
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
+  return code;
+}
+
+/**
+ * `keepPaired`: a rejected code from a link is expected when a saved start page still carries it;
+ * a terminal this browser already holds keeps showing its QR instead of asking for a new code.
+ */
+let pairing = false;
+
+async function pair(code: string, keepPaired = false): Promise<void> {
+  pairing = true;
   el.pairButton.disabled = true;
   el.pairButton.textContent = t.kiosk.pairing;
   try {
-    const res = await fetch(`${API_URL}/kiosk/pair`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code }),
-    });
-    if (res.status === 401 || res.status === 400) {
-      showPairing(t.kiosk.pairInvalid);
+    const paired = await requestPairing(code);
+    failures = 0;
+    if (paired) {
+      await showPaired(paired);
       return;
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const paired = TerminalPaired.parse(await res.json());
-    remember({ id: paired.terminalId, name: paired.terminalName, token: paired.deviceToken });
-    el.pair.hidden = true;
-    el.pairCode.value = '';
-    el.terminalName.textContent = paired.terminalName;
-    await fetchChallenge();
+    if (keepPaired && deviceToken) {
+      el.pairCode.value = '';
+      await fetchChallenge();
+      return;
+    }
+    showPairing(t.kiosk.pairInvalid);
   } catch {
     showPairing(t.kiosk.offline);
+    // The link code may be a new terminal's and still valid: retry it rather than dropping it or
+    // falling back to another terminal. Only the server's refusal proves it was a spent code.
+    if (keepPaired) setTimeout(() => void pair(code, true), retryDelaySeconds() * 1000);
+    failures += 1;
   } finally {
+    pairing = false;
     el.pairButton.disabled = false;
     el.pairButton.textContent = t.kiosk.pairButton;
   }
 }
+
+/** The paired terminal, or null when the server rejects the code; a network failure throws. */
+async function requestPairing(code: string): Promise<TerminalPaired | null> {
+  const res = await fetch(`${API_URL}/kiosk/pair`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (res.status === 401 || res.status === 400) return null;
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return TerminalPaired.parse(await res.json());
+}
+
+async function showPaired(paired: TerminalPaired): Promise<void> {
+  remember({ id: paired.terminalId, name: paired.terminalName, token: paired.deviceToken });
+  el.pair.hidden = true;
+  el.pairCode.value = '';
+  el.terminalName.textContent = paired.terminalName;
+  await fetchChallenge();
+}
+
+/** A request on a flaky site network must not hang forever and block the next refresh. */
+const REQUEST_TIMEOUT_MS = 15_000;
+let loading = false;
 
 async function fetchChallenge(): Promise<void> {
   if (!deviceToken) {
     showPairing();
     return;
   }
+  // The terminal can be switched while this request is in flight; only its own answer may draw.
+  const token = deviceToken;
+  loading = true;
   try {
     const res = await fetch(`${API_URL}/kiosk/challenge`, {
-      headers: { 'x-device-token': deviceToken },
+      headers: { 'x-device-token': token },
       cache: 'no-store',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
+    if (token !== deviceToken) return;
     if (res.status === 401 || res.status === 403) {
       showProblem(t.kiosk.unauthorized, true);
       return;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = KioskChallengeResponse.parse(await res.json());
-
-    el.qr.replaceChildren();
-    const canvas = document.createElement('canvas');
-    await QRCode.toCanvas(canvas, data.deepLink, {
-      errorCorrectionLevel: 'M',
-      margin: 1,
-      width: 560,
-    });
-    el.qr.append(canvas);
-
-    el.terminalName.textContent = data.terminalName;
-    // A tablet paired before the switcher existed arrives with a bare token: file it now that the
-    // challenge has told us which terminal it belongs to, and it joins the list like any other.
-    if (!terminals.some((x) => x.id === data.terminalId)) {
-      remember({ id: data.terminalId, name: data.terminalName, token: deviceToken }, !selectedId());
-    }
-    lastSync = new Date();
-    el.syncDot.className = 'dot ok';
-    countdown = data.rotationSeconds;
-    el.offline.hidden = true;
-    el.repair.hidden = true;
-    el.pair.hidden = true;
-    el.qr.hidden = false;
-    el.terminal.classList.remove('pairing');
+    if (token !== deviceToken) return;
+    await showChallenge(data);
+    // The server has just answered, so the network is up: the one moment a reload into a new
+    // release cannot strand the screen on the browser's offline page.
+    if (releaseIsWaiting()) location.reload();
   } catch {
+    if (token !== deviceToken) return;
     el.syncDot.className = 'dot bad';
     showProblem(t.kiosk.offline);
+  } finally {
+    loading = false;
   }
+}
+
+async function showChallenge(data: KioskChallengeResponse): Promise<void> {
+  el.qr.replaceChildren();
+  const canvas = document.createElement('canvas');
+  await QRCode.toCanvas(canvas, data.deepLink, {
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    width: 560,
+  });
+  el.qr.append(canvas);
+
+  el.terminalName.textContent = data.terminalName;
+  // A tablet paired before the switcher existed arrives with a bare token: file it now that the
+  // challenge has told us which terminal it belongs to, and it joins the list like any other.
+  if (!terminals.some((x) => x.id === data.terminalId)) {
+    remember({ id: data.terminalId, name: data.terminalName, token: deviceToken }, !selectedId());
+  }
+  lastSync = new Date();
+  el.syncDot.className = 'dot ok';
+  refreshIn(data.rotationSeconds);
+  failures = 0;
+  el.offline.hidden = true;
+  el.repair.hidden = true;
+  el.pair.hidden = true;
+  el.qr.hidden = false;
+  el.terminal.classList.remove('pairing');
+}
+
+/**
+ * After sleep or a network drop the QR on screen may already be expired; fetch a fresh one at once
+ * instead of waiting for the next tick of a page that was frozen or hidden.
+ */
+function refreshNow(): void {
+  if (!el.pair.hidden || loading || pairing) return;
+  void fetchChallenge();
 }
 
 /** Switching terminals: change the address, use that terminal's token, redraw the QR. */
@@ -397,12 +492,17 @@ el.terminalSwitch.addEventListener('change', () => {
 el.terminal.addEventListener('click', () => el.terminal.classList.add('open'));
 el.terminal.addEventListener('mouseleave', releaseSwitch);
 
+/** A deadline further ahead than any rotation means the device clock was set back: it is due. */
+const MAX_AHEAD_MS = 5 * 60_000;
+
 function tick(): void {
   drawClock();
-  if (!el.pair.hidden) return;
-  countdown -= 1;
-  el.meta.textContent = `${t.kiosk.refreshIn} ${Math.max(0, countdown)} ${t.kiosk.seconds}`;
-  if (countdown <= 0) void fetchChallenge();
+  if (!el.pair.hidden || pairing) return;
+  if (refreshAt - Date.now() > MAX_AHEAD_MS) refreshAt = 0;
+  const left = Math.max(0, Math.ceil((refreshAt - Date.now()) / 1000));
+  el.meta.textContent = `${t.kiosk.refreshIn} ${left} ${t.kiosk.seconds}`;
+  if (left === 0 && !loading) void fetchChallenge();
+  void checkForRelease();
 }
 
 el.pair.addEventListener('submit', (ev) => {
@@ -415,10 +515,20 @@ el.fullscreen.addEventListener('click', () => {
   void keepAwake();
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') void keepAwake();
+  if (document.visibilityState !== 'visible') return;
+  void keepAwake();
+  refreshNow();
 });
+// A frozen page gets `resume`, one restored from the back/forward cache `pageshow`; both can
+// still hold an expired QR.
+window.addEventListener('online', refreshNow);
+window.addEventListener('pageshow', refreshNow);
+document.addEventListener('resume', refreshNow);
 drawClock();
 void keepAwake();
+// The device token lives in this origin's storage; ask the browser not to evict it under storage
+// pressure. Best effort: a refusal changes nothing.
+if ('storage' in navigator) void navigator.storage.persist().catch(() => false);
 el.repair.addEventListener('click', () => {
   forgetToken();
   showPairing();
@@ -428,10 +538,10 @@ renderSwitch();
 const chosen = current();
 if (chosen) el.terminalName.textContent = chosen.name;
 
-const codeFromLink = new URLSearchParams(location.hash.replace(/^#/, '')).get('pair');
+const codeFromLink = takeLinkCode();
 if (codeFromLink) {
   el.pairCode.value = codeFromLink;
-  void pair(codeFromLink);
+  void pair(codeFromLink, true);
 } else {
   void fetchChallenge();
 }
