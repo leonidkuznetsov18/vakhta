@@ -281,7 +281,55 @@ Fixture-rendered on the panel's components: the card section «Должност�
 components with sources, level change, personal replace, one-time correction, transfer with
 exception decisions, history) and the node «Условия оплаты» block in Оргструктура. Captures in
 `docs/engineering/evidence/pay-terms-2026-09-24/`; the shared page is linked from the engineering
-memory.
+memory. Every state with a caption:
+[capture gallery](../../docs/engineering/evidence/pay-terms-2026-09-24/README.md).
+
+### Key screens
+
+The section: employment line, assignments, components with «Из группы · Персонально ·
+Применено», month preview, one-time corrections, history (AC-001, AC-002, AC-003).
+
+![Read state, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/read-desktop.jpg)
+
+Resolution path of one component (AC-002, CFG-07).
+
+![Resolution path, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/path-desktop.jpg)
+
+Names only: a role that sees groups and levels without amounts (AC-004).
+
+![Names only, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/names-only-desktop.jpg)
+
+Personal replace of a component (AC-009).
+
+![Replace editor, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/replace-desktop.jpg)
+
+Add a supplement (AC-010).
+
+![Add supplement, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/add-desktop.jpg)
+
+Level change from the position's scale with a per-month preview (AC-008, PROC-05).
+
+![Level change, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/level-desktop.jpg)
+
+One-time correction (AC-011, GRP-09).
+
+![One-time correction, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/adjustment-desktop.jpg)
+
+Transfer with old and new sources and a decision per personal exception (AC-006, PROC-06).
+
+![Transfer, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/transfer-desktop.jpg)
+
+History expanded (AC-015).
+
+![History, desktop](../../docs/engineering/evidence/pay-terms-2026-09-24/history-desktop.jpg)
+
+Node block «Условия оплаты» in Оргструктура (AC-012), captured with the org structure set.
+
+![Node pay conditions, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/section-desktop.jpg)
+
+Mobile (Edge Cases).
+
+<img src="../../docs/engineering/evidence/pay-terms-2026-09-24/read-mobile.jpg" width="300" alt="Read state, mobile">
 
 ## Open decisions
 

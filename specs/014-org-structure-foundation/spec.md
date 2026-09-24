@@ -320,7 +320,48 @@ Rendered from fixtures on the panel's components (`apps/admin-web/e2e/units.html
 engineering memory. The states it demonstrates map to: tree and counts (US1 picture, AC-013),
 responsibles with states (AC-005–AC-007), move with effective date (AC-014), bulk placement
 (AC-015), node creation with kind (AC-009), history (AC-010), archive blocked (AC-011), read-only
-(AC-019), mobile (Edge Cases).
+(AC-019), mobile (Edge Cases). Every state with a caption:
+[capture gallery](../../docs/engineering/evidence/org-structure-2026-09-24/README.md).
+
+### Key screens
+
+Section root: tree with kinds, heads and subtree counts; summary counts inline, actionable counts
+as chips (US1, AC-013).
+
+![Overview, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/overview-desktop.jpg)
+
+Node detail: facts, three responsible slots with inherited shift masters, pay conditions
+(spec 015), people with row actions, history (AC-005, AC-010, AC-012 of spec 015).
+
+![Section detail, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/section-desktop.jpg)
+
+Attention filter: nodes without a head, with an inactive or transferred responsible (AC-007).
+
+![Attention filter, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/attention-desktop.jpg)
+
+Head picker popover (AC-006).
+
+![Head picker, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/head-desktop.jpg)
+
+Move with an effective date and the position kept (AC-014).
+
+![Move popover, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/move-desktop.jpg)
+
+Bulk placement from the pool «Без подразделения» (AC-013, AC-015).
+
+![Bulk assign, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/bulk-desktop.jpg)
+
+Create a node with kind, parent of the kind above, head and effective date (AC-009).
+
+![Create node, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/create-desktop.jpg)
+
+Node history (AC-010, R40).
+
+![History, desktop](../../docs/engineering/evidence/org-structure-2026-09-24/history-desktop.jpg)
+
+Mobile: the tree is the screen, a node opens over it; popovers fit 390 px (Edge Cases).
+
+<img src="../../docs/engineering/evidence/org-structure-2026-09-24/list-mobile.jpg" width="300" alt="Tree, mobile"> <img src="../../docs/engineering/evidence/org-structure-2026-09-24/section-mobile.jpg" width="300" alt="Section detail, mobile"> <img src="../../docs/engineering/evidence/org-structure-2026-09-24/move-mobile.jpg" width="300" alt="Move popover, mobile">
 
 ## Addendum 2026-09-24: alignment with the payroll TZ v0.1
 
