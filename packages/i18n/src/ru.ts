@@ -793,7 +793,7 @@ export const ru: Messages = {
       events: 'События',
       summary: 'Итог',
       empty: 'Открытых смен нет.',
-      notArrived: 'Не пришли на смену',
+      notArrived: 'Не на смене',
       notArrivedDetail:
         'По графику смена {plan}. С её начала прошло больше {grace} мин, а нет ни QR-прихода, ни открытой смены.',
       notArrivedEmpty: 'Все, кто запланирован на эту смену, пришли.',

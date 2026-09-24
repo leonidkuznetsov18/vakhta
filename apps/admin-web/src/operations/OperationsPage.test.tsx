@@ -383,7 +383,7 @@ describe('OperationsPage', () => {
     expect(await screen.findByText('Ярошенко Лідія')).toBeTruthy();
     // The overview link opens the filter, so only the missing person is listed, with the gap.
     expect(screen.queryByText('Кузнецов Леонид')).toBeNull();
-    expect(screen.getAllByText('Не пришли на смену').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Не на смене').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/1 ч 30 мин/)).toBeTruthy();
     // The preset reads as a named filter in the toolbar, with its count.
     const filter = screen.getByRole('combobox', { name: 'Состояние' });
@@ -410,7 +410,7 @@ describe('OperationsPage', () => {
     });
     await render(<OperationsPage />);
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
-    await waitFor(() => expect(screen.queryByText('Не пришли на смену')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Не на смене')).toBeNull());
   });
 
   it('does not add the current shift no-shows to another day', async () => {

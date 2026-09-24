@@ -795,7 +795,7 @@ export const en: Messages = {
       events: 'Events',
       summary: 'Summary',
       empty: 'No open shifts.',
-      notArrived: 'Did not arrive',
+      notArrived: 'Not on shift',
       notArrivedDetail:
         'Scheduled for {plan}. More than {grace} min have passed since the start, and there is neither a QR arrival nor an open shift.',
       notArrivedEmpty: 'Everyone scheduled for this shift has arrived.',

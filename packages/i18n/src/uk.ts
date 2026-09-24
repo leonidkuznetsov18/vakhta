@@ -795,7 +795,7 @@ export const uk: Messages = {
       events: 'Події',
       summary: 'Підсумок',
       empty: 'Відкритих змін немає.',
-      notArrived: 'Не прийшли на зміну',
+      notArrived: 'Не на зміні',
       notArrivedDetail:
         'За графіком зміна {plan}. Минуло понад {grace} хв від її початку, а ні QR-приходу, ні відкритої зміни немає.',
       notArrivedEmpty: 'Усі, кого заплановано на цю зміну, прийшли.',
