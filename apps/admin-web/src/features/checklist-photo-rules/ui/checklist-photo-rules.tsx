@@ -52,7 +52,7 @@ export function ChecklistPhotoRules({
   initialMode?: 'view' | 'edit';
 }) {
   return (
-    <WorkflowSection title={t.title} hint={<InfoTip text={t.hint} />} emphasis="action">
+    <WorkflowSection title={t.title} hint={<InfoTip text={t.hint} />} emphasis="action" collapsible>
       <RulesQuery definitionId={definitionId} initialMode={initialMode} />
     </WorkflowSection>
   );
