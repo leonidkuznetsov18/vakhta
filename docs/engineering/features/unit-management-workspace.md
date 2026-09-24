@@ -4,9 +4,33 @@ Status: proposal with prototype, 2026-09-24. Owner: frontend + product. Baseline
 Authorized scope: the owner's brief "rethink Subdivision / Department Management" (this document
 answers its ten deliverables). Nothing here is deployed; the prototype renders from fixtures.
 
-Evidence: `docs/engineering/evidence/unit-workspace-2026-09-24/` (desktop 1440 px and iPhone 13
+Evidence: `docs/engineering/evidence/org-structure-2026-09-24/` (desktop 1440 px and iPhone 13
 captures of every state, produced by `apps/admin-web/e2e/units.spec.ts` against
-`/e2e/units.html?state=<key>`).
+`/e2e/units.html?state=<key>`). The first iteration's captures (an Administration tab without
+node kinds or responsible slots) were replaced by the second; git history keeps them.
+
+## Update 2026-09-24 (evening): the structure as the system of record
+
+The owner reframed the request: the organisation structure will carry payroll, bonus, sick leave
+and everything else. The bounded change is now [spec 014](../../../specs/014-org-structure-foundation/spec.md);
+this document keeps the proposal history and the prototype evidence. What changed in the
+prototype for that spec:
+
+- a top-level section **Оргструктура** in the sidebar instead of an Administration tab;
+- typed nodes (Подразделение → Цех → Участок) with collapsible tree, site headings and subtree
+  headcount (`model/org-node.ts`, `visibleUnits`);
+- three responsible slots per node (руководитель, мастер дневной/ночной смены) with states
+  `MISSING / ASSIGNED / INACTIVE / ELSEWHERE`, shift masters inherited from the nearest ancestor,
+  no shift-master rows on a division;
+- the people table gains «Руководитель» (the node head unless the placement overrides it);
+- moves and placements carry an effective date; the node form asks for kind, parent of the kind
+  above, head and effective date;
+- history section per node; archive in the node menu, disabled with the reason while the node has
+  people or children; archived nodes are hidden from the tree.
+
+Verification of the second iteration: admin-web `tsc --noEmit` clean; `eslint
+src/features/org-structure` clean with no suppressions; Prettier applied; Playwright 46/46
+(23 states × desktop and mobile) with the preinstalled Chromium; every capture inspected.
 
 ## 1. Current UX problems
 
@@ -17,16 +41,16 @@ the unit Sheet (`features/unit-settings`) for the master and the unit's shifts. 
 the other side only: Employees → row → full profile → edit → `AssignPositionForm`
 (`admin/EmployeesTab.tsx:822-974`).
 
-| #   | Problem                                                                                                                       | Frequency | Severity | Effort / risk                                                                              |
-| --- | ----------------------------------------------------------------------------------------------------------------------------- | --------- | -------- | ------------------------------------------------------------------------------------------ |
-| P1  | Nobody can see how many people have no unit. `currentPosition: null` is invisible everywhere except one muted cell per row.  | daily     | high     | Unplaced people are missing from the schedule, cannot check in and earn no bonus.          |
-| P2  | Moving a person takes 5 interactions across two tabs and a full-page profile; no bulk move exists.                            | weekly    | high     | Each move is a three-select form; reorganisations of 10+ people are done one by one.       |
-| P3  | The master is a column and a Sheet field. Missing, inactive and "works elsewhere" masters look the same as healthy ones.      | weekly    | high     | A unit without a reachable master silently loses handover acceptance and escalations.      |
-| P4  | Headcount exists only in the tree view, which is opt-in and a second click away.                                              | daily     | medium   | The default table answers none of the owner's nine questions.                              |
-| P5  | Units share a page with sites, teams, positions and zones: five tables, five "Add" dialogs, no summary.                       | daily     | medium   | The page is a directory, not a workspace; it does not scale past ~10 units visually.       |
-| P6  | Inspecting a unit means opening a Sheet that shows the master and shifts but not the people.                                  | weekly    | medium   | Composition is only in the tree; the tree has no actions except "Open".                    |
-| P7  | Configuration health is not expressed: no state for "no employees", "no master", "master terminated", "master moved".         | monthly   | medium   | Problems surface on the shop floor (an unanswered handover) instead of in the panel.       |
-| P8  | Deleting a unit is a hard delete blocked by any FK, including closed position history; the UI cannot say why.                 | rare      | low      | The administrator sees a generic "in use" message with no way forward.                     |
+| #   | Problem                                                                                                                     | Frequency | Severity | Effort / risk                                                                         |
+| --- | --------------------------------------------------------------------------------------------------------------------------- | --------- | -------- | ------------------------------------------------------------------------------------- |
+| P1  | Nobody can see how many people have no unit. `currentPosition: null` is invisible everywhere except one muted cell per row. | daily     | high     | Unplaced people are missing from the schedule, cannot check in and earn no bonus.     |
+| P2  | Moving a person takes 5 interactions across two tabs and a full-page profile; no bulk move exists.                          | weekly    | high     | Each move is a three-select form; reorganisations of 10+ people are done one by one.  |
+| P3  | The master is a column and a Sheet field. Missing, inactive and "works elsewhere" masters look the same as healthy ones.    | weekly    | high     | A unit without a reachable master silently loses handover acceptance and escalations. |
+| P4  | Headcount exists only in the tree view, which is opt-in and a second click away.                                            | daily     | medium   | The default table answers none of the owner's nine questions.                         |
+| P5  | Units share a page with sites, teams, positions and zones: five tables, five "Add" dialogs, no summary.                     | daily     | medium   | The page is a directory, not a workspace; it does not scale past ~10 units visually.  |
+| P6  | Inspecting a unit means opening a Sheet that shows the master and shifts but not the people.                                | weekly    | medium   | Composition is only in the tree; the tree has no actions except "Open".               |
+| P7  | Configuration health is not expressed: no state for "no employees", "no master", "master terminated", "master moved".       | monthly   | medium   | Problems surface on the shop floor (an unanswered handover) instead of in the panel.  |
+| P8  | Deleting a unit is a hard delete blocked by any FK, including closed position history; the UI cannot say why.               | rare      | low      | The administrator sees a generic "in use" message with no way forward.                |
 
 ## 2. Users and jobs to be done
 
@@ -55,14 +79,14 @@ of the employee directory.
 
 ## 3. Competitive patterns
 
-| Product                                                                                                                                                    | Pattern                                                                                                                                                                                                                                | Adopt / avoid                                                                                                                                                       |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Deputy — Areas](https://help.deputy.com/hc/en-au/articles/5832768874127-Areas-in-Deputy), [bulk actions](https://help.deputy.com/hc/en-au/articles/6072679975055-Changing-a-Team-member-s-main-or-primary-work-location) | Location → Areas; people are assigned from the People list by selecting rows and choosing "Add Location" in a bulk menu; CSV for mass changes.                                                                                           | **Adopt** selection + one bulk action on the people list. **Avoid** CSV as the primary path for a 200-person plant.                                                 |
-| [Connecteam — Smart Groups](https://help.connecteam.com/en/articles/6114686-smart-groups-and-segments)                                                     | Membership is a rule over user fields; admins of a group are chosen per group; bulk field updates move people implicitly.                                                                                                              | **Adopt** "one responsible admin per group" as a visible attribute. **Avoid** rule-based membership: unit membership in Vakhta is a dated position row, an explicit fact. |
-| [Personio — Org chart](https://support.personio.de/hc/en-us/articles/29762795544989-Manage-the-Org-chart), [departments](https://support.personio.de/hc/en-us/articles/18862110441885-Set-up-departments-and-teams) | Chart arranged by department or team; the department card opens an editor with a lead; a lead need not belong to the department.                                                                                                       | **Adopt** the lead as a first-class card field and the "lead may be elsewhere" fact, surfaced as a warning here. **Avoid** the chart as the working surface: it shows, it does not edit. |
-| [BambooHR — Directory and org chart](https://help.bamboohr.com/s/article/587751)                                                                           | Directory grouped by department/division/location; org chart is a view of manager links; search across name, department, location.                                                                                                     | **Adopt** one search across people and units. **Avoid** manager-link trees: Vakhta has no reports-to graph, only unit → designated master.                          |
-| [HiBob](https://www.stitchflow.com/user-management/hibob/manual)                                                                                           | Terminating a manager leaves reports "unassigned" until re-pointed manually.                                                                                                                                                           | **Adopt** the lesson: a terminated master must become a visible state, not a silent null.                                                                           |
-| [Zoho Directory — departments](https://help.zoho.com/portal/en/kb/directory/admin-guide/groups/articles/add-department)                                     | A user is a member of one department; a head may head several.                                                                                                                                                                         | Matches our model (one open position; one master per unit, an employee may master several units). Nothing to change.                                                |
+| Product                                                                                                                                                                                                                   | Pattern                                                                                                                                        | Adopt / avoid                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Deputy — Areas](https://help.deputy.com/hc/en-au/articles/5832768874127-Areas-in-Deputy), [bulk actions](https://help.deputy.com/hc/en-au/articles/6072679975055-Changing-a-Team-member-s-main-or-primary-work-location) | Location → Areas; people are assigned from the People list by selecting rows and choosing "Add Location" in a bulk menu; CSV for mass changes. | **Adopt** selection + one bulk action on the people list. **Avoid** CSV as the primary path for a 200-person plant.                                                                      |
+| [Connecteam — Smart Groups](https://help.connecteam.com/en/articles/6114686-smart-groups-and-segments)                                                                                                                    | Membership is a rule over user fields; admins of a group are chosen per group; bulk field updates move people implicitly.                      | **Adopt** "one responsible admin per group" as a visible attribute. **Avoid** rule-based membership: unit membership in Vakhta is a dated position row, an explicit fact.                |
+| [Personio — Org chart](https://support.personio.de/hc/en-us/articles/29762795544989-Manage-the-Org-chart), [departments](https://support.personio.de/hc/en-us/articles/18862110441885-Set-up-departments-and-teams)       | Chart arranged by department or team; the department card opens an editor with a lead; a lead need not belong to the department.               | **Adopt** the lead as a first-class card field and the "lead may be elsewhere" fact, surfaced as a warning here. **Avoid** the chart as the working surface: it shows, it does not edit. |
+| [BambooHR — Directory and org chart](https://help.bamboohr.com/s/article/587751)                                                                                                                                          | Directory grouped by department/division/location; org chart is a view of manager links; search across name, department, location.             | **Adopt** one search across people and units. **Avoid** manager-link trees: Vakhta has no reports-to graph, only unit → designated master.                                               |
+| [HiBob](https://www.stitchflow.com/user-management/hibob/manual)                                                                                                                                                          | Terminating a manager leaves reports "unassigned" until re-pointed manually.                                                                   | **Adopt** the lesson: a terminated master must become a visible state, not a silent null.                                                                                                |
+| [Zoho Directory — departments](https://help.zoho.com/portal/en/kb/directory/admin-guide/groups/articles/add-department)                                                                                                   | A user is a member of one department; a head may head several.                                                                                 | Matches our model (one open position; one master per unit, an employee may master several units). Nothing to change.                                                                     |
 
 Common to all of them and adopted: an explicit "unassigned" pool as the entry point for new hires; a
 master/detail split where the list carries counts and the detail carries the actions; bulk actions
@@ -85,12 +109,12 @@ The two "Оргструктура" screens (Miller columns and card grid) were u
 
 ## 5. Alternative concepts
 
-| Concept                                                                                                                   | Benefits                                                                                        | Drawbacks                                                                                                            | 20 people / 5 units | 200+ people / 15 units                                                    | Complexity                                    |
-| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------- | --------------------------------------------- |
-| **A. Unit cards** — a grid of rich cards (name, count, master, avatar stack, warnings, menu) and an "unassigned" strip on top. | Best glance value at small scale; matches the second screenshot; composition visible via avatars. | People are only a stack; every action opens a Sheet; 15 cards × 5 rows push the pool off screen; no per-person actions. | Good                | Poor: cards stop being a picture and become a paginated list of boxes.    | Low (reuses Section, AvatarStack, UnitSheet)  |
-| **B. Master/detail workspace** — left: pinned "Без подразделения" + units with count, master and attention flag; right: the selected unit with master block, people table, per-row and bulk "Move to…". | One screen answers Q1–Q9; every action is inline; the table is already paginated, sortable, selectable; the list stays readable at 50 units. | Two panes need a stacked mobile flow; less "picture" than cards.                                                     | Good                | Good: list scrolls, detail paginates, search jumps to a person.           | Medium (new slice UI, all primitives exist)   |
-| **C. Assignment board** — units as columns, people as cards, drag-and-drop between columns, unassigned as the first column. | Fastest single move; visual.                                                                     | 60-card columns, horizontal scroll at 8+ units, touch and keyboard DnD, no room for master state, hard to audit a drop. | Very good           | Fails: a column of 117 cards is a list with worse affordances.            | High (DnD lib, a11y, undo)                    |
-| **D. Keep Directories, add columns** — headcount column, master state pill, "Move" in the employee table.                  | Cheapest.                                                                                        | Still five tables on one page; still no pool; still two tabs for one job.                                            | Fair                | Poor                                                                     | Very low                                      |
+| Concept                                                                                                                                                                                                 | Benefits                                                                                                                                     | Drawbacks                                                                                                               | 20 people / 5 units | 200+ people / 15 units                                                 | Complexity                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
+| **A. Unit cards** — a grid of rich cards (name, count, master, avatar stack, warnings, menu) and an "unassigned" strip on top.                                                                          | Best glance value at small scale; matches the second screenshot; composition visible via avatars.                                            | People are only a stack; every action opens a Sheet; 15 cards × 5 rows push the pool off screen; no per-person actions. | Good                | Poor: cards stop being a picture and become a paginated list of boxes. | Low (reuses Section, AvatarStack, UnitSheet) |
+| **B. Master/detail workspace** — left: pinned "Без подразделения" + units with count, master and attention flag; right: the selected unit with master block, people table, per-row and bulk "Move to…". | One screen answers Q1–Q9; every action is inline; the table is already paginated, sortable, selectable; the list stays readable at 50 units. | Two panes need a stacked mobile flow; less "picture" than cards.                                                        | Good                | Good: list scrolls, detail paginates, search jumps to a person.        | Medium (new slice UI, all primitives exist)  |
+| **C. Assignment board** — units as columns, people as cards, drag-and-drop between columns, unassigned as the first column.                                                                             | Fastest single move; visual.                                                                                                                 | 60-card columns, horizontal scroll at 8+ units, touch and keyboard DnD, no room for master state, hard to audit a drop. | Very good           | Fails: a column of 117 cards is a list with worse affordances.         | High (DnD lib, a11y, undo)                   |
+| **D. Keep Directories, add columns** — headcount column, master state pill, "Move" in the employee table.                                                                                               | Cheapest.                                                                                                                                    | Still five tables on one page; still no pool; still two tabs for one job.                                               | Fair                | Poor                                                                   | Very low                                     |
 
 Recommended: **B**, with the useful parts of A folded in (the summary counts are cards' "glance"
 value; the master is a person, not a string) and C rejected until a demonstrated need for drag.
@@ -145,23 +169,23 @@ fixture. Everything else is the real component library (`DataTable`, `StatusPill
 `Popover`+`Command`, `SelectField`, `AddDialog`, `TableSearch`, `StateFilter`, `UserAvatar`,
 `LoadingState`, `QueryFeedback`) so the result is what the panel would render.
 
-| State                       | Capture                                                        |
-| --------------------------- | -------------------------------------------------------------- |
-| Overview, unit selected     | `overview-desktop.jpg`, `overview-mobile.jpg`                  |
-| List only (mobile entry)    | `list-desktop.jpg`, `list-mobile.jpg`                          |
-| Attention filter            | `attention-desktop.jpg`                                        |
-| Unassigned pool             | `unassigned-desktop.jpg`                                       |
-| Assign one (popover step 2) | `assign-desktop.jpg`                                           |
-| Move one                    | `move-desktop.jpg`, `move-mobile.jpg`                          |
-| Bulk assign 4               | `bulk-desktop.jpg`, `bulk-mobile.jpg`                          |
-| Master picker               | `master-desktop.jpg`, `master-mobile.jpg`                      |
-| Master terminated / moved   | `master-inactive-desktop.jpg`, `master-elsewhere-desktop.jpg`  |
-| Create unit                 | `create-desktop.jpg`                                           |
+| State                       | Capture                                                                  |
+| --------------------------- | ------------------------------------------------------------------------ |
+| Overview, unit selected     | `overview-desktop.jpg`, `overview-mobile.jpg`                            |
+| List only (mobile entry)    | `list-desktop.jpg`, `list-mobile.jpg`                                    |
+| Attention filter            | `attention-desktop.jpg`                                                  |
+| Unassigned pool             | `unassigned-desktop.jpg`                                                 |
+| Assign one (popover step 2) | `assign-desktop.jpg`                                                     |
+| Move one                    | `move-desktop.jpg`, `move-mobile.jpg`                                    |
+| Bulk assign 4               | `bulk-desktop.jpg`, `bulk-mobile.jpg`                                    |
+| Master picker               | `master-desktop.jpg`, `master-mobile.jpg`                                |
+| Master terminated / moved   | `master-inactive-desktop.jpg`, `master-elsewhere-desktop.jpg`            |
+| Create unit                 | `create-desktop.jpg`                                                     |
 | Search: hits / jump / none  | `search-desktop.jpg`, `search-hit-desktop.jpg`, `no-results-desktop.jpg` |
-| No units yet                | `no-units-desktop.jpg`                                         |
-| Read-only role              | `readonly-desktop.jpg`                                         |
-| 306 people                  | `large-desktop.jpg`                                            |
-| Loading / error             | `loading-desktop.jpg`, `error-desktop.jpg`                     |
+| No units yet                | `no-units-desktop.jpg`                                                   |
+| Read-only role              | `readonly-desktop.jpg`                                                   |
+| 306 people                  | `large-desktop.jpg`                                                      |
+| Loading / error             | `loading-desktop.jpg`, `error-desktop.jpg`                               |
 
 ## 8. Key workflows (clicks counted from the tab)
 
@@ -194,7 +218,7 @@ structure and `[ADMIN, HR]` for placement.
 Needs backend work, in priority order:
 
 1. **Bulk placement** — `POST /admin/employees/positions/bulk-assign {employeeIds[], orgUnitId,
-   positionId, teamId?}`: one transaction, one audit entry, per-row result. Without it the panel
+positionId, teamId?}`: one transaction, one audit entry, per-row result. Without it the panel
    would fire N sequential single calls with partial-failure reporting (acceptable for the first
    iteration, but a 40-person reorganisation should not be 40 audit rows and 40 round trips).
 2. **Unit archive instead of hard delete** — `org_units.archived_at`; archived units hidden from

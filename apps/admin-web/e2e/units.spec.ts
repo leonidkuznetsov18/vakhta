@@ -1,17 +1,21 @@
 import { expect, test } from '@playwright/test';
 
-/** Every scenario of the units workspace prototype, captured for the design proposal. */
+/** Every scenario of the structure section prototype, captured for spec 014. */
 const STATES = [
   'overview',
   'list',
+  'collapsed',
+  'section',
   'attention',
   'unassigned',
   'assign',
   'move',
   'bulk',
-  'master',
-  'master-inactive',
-  'master-elsewhere',
+  'head',
+  'head-inactive',
+  'head-elsewhere',
+  'menu',
+  'history',
   'create',
   'search',
   'search-hit',
@@ -24,7 +28,7 @@ const STATES = [
 ] as const;
 
 /** Scenarios that start with a popover or dialog open; the capture waits for it. */
-const OPENS_LAYER = new Set(['assign', 'move', 'bulk', 'master', 'create']);
+const OPENS_LAYER = new Set(['assign', 'move', 'bulk', 'head', 'menu', 'create']);
 
 for (const state of STATES) {
   test(`units workspace: ${state}`, async ({ page }, info) => {
@@ -32,7 +36,7 @@ for (const state of STATES) {
     // A modal dialog hides the page heading from the accessibility tree, so wait for the layer instead.
     if (OPENS_LAYER.has(state)) {
       await expect(
-        page.locator('[data-slot=popover-content], [role=dialog]').first(),
+        page.locator('[data-slot=popover-content], [role=dialog], [role=menu]').first(),
       ).toBeVisible();
     } else {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

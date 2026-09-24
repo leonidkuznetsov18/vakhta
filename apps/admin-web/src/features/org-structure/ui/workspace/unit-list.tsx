@@ -1,13 +1,30 @@
 import type { ReactNode } from 'react';
-import { Building2Icon, ChevronRightIcon, TriangleAlertIcon, UserRoundXIcon } from 'lucide-react';
+import {
+  Building2Icon,
+  ChevronRightIcon,
+  CogIcon,
+  FactoryIcon,
+  FolderIcon,
+  TriangleAlertIcon,
+  UserRoundXIcon,
+} from 'lucide-react';
 import { cn } from 'cn';
 import { Muted, StatusPill } from '@/components/app/page';
+import { OrgUnitKind, ResponsibleSlot } from '../../model/org-node';
 import { MasterState, UNASSIGNED_KEY, type WorkspaceUnit } from '../../model/workspace';
 import { fill, text } from './text';
 
 const ROW_CLASS =
-  'group flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring';
+  'group flex w-full min-w-0 items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring';
 const ACTIVE_CLASS = 'bg-muted font-medium ring-1 ring-inset ring-border';
+const TOGGLE_CLASS =
+  'flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring';
+
+const KIND_ICON = {
+  [OrgUnitKind.DIVISION]: FolderIcon,
+  [OrgUnitKind.SHOP]: FactoryIcon,
+  [OrgUnitKind.SECTION]: CogIcon,
+} as const;
 
 function UnassignedRow({
   count,
@@ -23,7 +40,7 @@ function UnassignedRow({
       <button
         type="button"
         aria-current={active ? 'true' : undefined}
-        className={cn(ROW_CLASS, active && ACTIVE_CLASS)}
+        className={cn(ROW_CLASS, 'pl-2', active && ACTIVE_CLASS)}
         onClick={onSelect}
       >
         <UserRoundXIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -35,51 +52,68 @@ function UnassignedRow({
         ) : (
           <Muted className="text-xs tabular-nums">0</Muted>
         )}
-        <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       </button>
     </li>
   );
 }
 
-function masterLine(row: WorkspaceUnit) {
-  const master = row.master;
-  if (master.state === MasterState.MISSING) return text.attention.NO_MASTER;
-  if (master.state === MasterState.INACTIVE) {
-    return `${master.name} · ${text.attention.inactiveShort}`;
+/** The second line of a node row: its head, or the reason the head line is a problem. */
+function headLine(row: WorkspaceUnit): { readonly label: string; readonly warning: boolean } {
+  const head = row.responsibles.find((item) => item.slot === ResponsibleSlot.HEAD)?.info;
+  if (!head || head.state === MasterState.MISSING) {
+    return { label: text.attention.NO_HEAD, warning: true };
   }
-  return master.name;
+  if (head.state === MasterState.INACTIVE) {
+    return { label: `${head.name} · ${text.attention.inactiveShort}`, warning: true };
+  }
+  return { label: head.name, warning: false };
 }
 
-/** Orange only where the master line itself is the problem; a master elsewhere keeps the icon. */
-function masterLineIsWarning(row: WorkspaceUnit) {
-  return row.master.state === MasterState.MISSING || row.master.state === MasterState.INACTIVE;
-}
-
-function UnitRow({
-  row,
-  active,
-  onSelect,
-}: {
+interface RowProps {
   readonly row: WorkspaceUnit;
   readonly active: boolean;
+  readonly collapsed: boolean;
   readonly onSelect: () => void;
-}) {
-  const needsAttention = row.attention.length > 0;
-  const missingMaster = masterLineIsWarning(row);
+  readonly onToggle: () => void;
+}
+
+function UnitRow({ row, active, collapsed, onSelect, onToggle }: RowProps) {
+  const Icon = KIND_ICON[row.unit.kind];
+  const head = headLine(row);
+  const hasChildren = row.childIds.length > 0;
   return (
-    <li>
+    <li className="flex min-w-0 items-center" style={{ paddingLeft: `${row.depth * 16}px` }}>
+      {hasChildren ? (
+        <button
+          type="button"
+          aria-label={`${collapsed ? text.list.expand : text.list.collapse}: ${row.unit.name}`}
+          aria-expanded={!collapsed}
+          className={TOGGLE_CLASS}
+          onClick={onToggle}
+        >
+          <ChevronRightIcon
+            aria-hidden="true"
+            className={cn(
+              'size-4 transition-transform motion-reduce:transition-none',
+              !collapsed && 'rotate-90',
+            )}
+          />
+        </button>
+      ) : (
+        <span aria-hidden="true" className="size-5 shrink-0" />
+      )}
       <button
         type="button"
         aria-current={active ? 'true' : undefined}
-        aria-label={`${row.unit.name}, ${fill(text.list.people, { n: row.headcount })}, ${masterLine(row)}`}
-        className={cn(ROW_CLASS, active && ACTIVE_CLASS)}
-        style={{ paddingLeft: `${8 + row.depth * 16}px` }}
+        aria-label={`${text.kinds[row.unit.kind]} ${row.unit.name}, ${fill(text.list.people, { n: row.headcount })}, ${head.label}`}
+        className={cn(ROW_CLASS, 'pl-1', active && ACTIVE_CLASS)}
         onClick={onSelect}
       >
+        <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="min-w-0 truncate">{row.unit.name}</span>
-            {needsAttention && (
+            {row.attention.length > 0 && (
               <TriangleAlertIcon
                 aria-hidden="true"
                 className="size-3.5 shrink-0 text-orange-600 dark:text-orange-400"
@@ -89,37 +123,41 @@ function UnitRow({
           <span
             className={cn(
               'truncate text-xs',
-              missingMaster ? 'text-orange-700 dark:text-orange-300' : 'text-muted-foreground',
+              head.warning ? 'text-orange-700 dark:text-orange-300' : 'text-muted-foreground',
             )}
           >
-            {masterLine(row)}
+            {head.label}
           </span>
         </span>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {fill(text.list.people, { n: row.headcount })}
         </span>
-        <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       </button>
     </li>
   );
 }
 
 /**
- * The left pane: the pinned "no unit" row, then every unit under its site with headcount and
- * master. Selection is a key, so the same list drives the desktop split and the mobile drill-down.
+ * The tree: the pinned "no node" row, then every site with its divisions, shops and sections.
+ * Each row shows the head and the subtree headcount, so the picture is complete without opening
+ * anything. Selection is a key, so the same list drives the desktop split and the mobile drill-down.
  */
 export function UnitList({
   units,
   unassignedCount,
   selectedKey,
+  collapsed,
   onSelect,
+  onToggle,
   emptyText,
   groupBySite,
 }: {
   readonly units: readonly WorkspaceUnit[];
   readonly unassignedCount: number;
   readonly selectedKey: string | null;
+  readonly collapsed: ReadonlySet<string>;
   readonly onSelect: (key: string) => void;
+  readonly onToggle: (unitId: string) => void;
   readonly emptyText: string;
   /** Site headings only earn their space when there is more than one site. */
   readonly groupBySite: boolean;
@@ -144,7 +182,9 @@ export function UnitList({
         key={row.unit.id}
         row={row}
         active={selectedKey === row.unit.id}
+        collapsed={collapsed.has(row.unit.id)}
         onSelect={() => onSelect(row.unit.id)}
+        onToggle={() => onToggle(row.unit.id)}
       />,
     );
   }

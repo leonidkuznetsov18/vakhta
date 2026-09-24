@@ -13,7 +13,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Label } from '@/components/ui/label';
+import { DateField } from '@/components/app/date-picker';
 import { Muted } from '@/components/app/page';
+import { OrgUnitKind } from '../../model/org-node';
 import type { WorkspacePerson, WorkspaceUnit } from '../../model/workspace';
 import { fill, text } from './text';
 
@@ -21,9 +23,11 @@ export interface MoveTarget {
   readonly unitId: string;
   readonly positionId: string;
   readonly teamId: string | null;
+  /** Business date the placement takes effect. */
+  readonly validFrom: string;
 }
 
-/** "Move" changes the unit of placed people; "assign" gives unplaced people their first one. */
+/** "Move" changes the node of placed people; "assign" gives unplaced people their first one. */
 export type MoveMode = 'move' | 'assign';
 
 interface Props {
@@ -31,12 +35,13 @@ interface Props {
   readonly people: readonly WorkspacePerson[];
   readonly units: readonly WorkspaceUnit[];
   readonly positions: readonly PositionView[];
-  /** Unit the people sit in now; it is listed but cannot be chosen again. */
+  /** Node the people sit in now; it is listed but cannot be chosen again. */
   readonly currentUnitId: string | null;
+  readonly today: string;
   readonly onConfirm: (target: MoveTarget) => void;
   readonly trigger: ReactNode;
   readonly defaultOpen?: boolean;
-  /** Prototype only: opens on the second step for a given unit. */
+  /** Prototype only: opens on the second step for a given node. */
   readonly initialTargetId?: string;
 }
 
@@ -76,7 +81,15 @@ function UnitChoice({
                   className="flex items-center gap-2"
                   style={{ paddingLeft: `${8 + row.depth * 12}px` }}
                 >
-                  <span className="min-w-0 flex-1 truncate">{row.unit.name}</span>
+                  <span
+                    className={
+                      row.unit.kind === OrgUnitKind.DIVISION
+                        ? 'min-w-0 flex-1 truncate font-medium'
+                        : 'min-w-0 flex-1 truncate'
+                    }
+                  >
+                    {row.unit.name}
+                  </span>
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                     {current ? text.move.sameUnit : fill(text.list.people, { n: row.headcount })}
                   </span>
@@ -120,33 +133,66 @@ function ChoiceField({
   );
 }
 
-function ConfirmStep({
-  mode,
-  people,
-  target,
-  positions,
-  onBack,
-  onConfirm,
-}: {
+function confirmText(mode: MoveMode, count: number) {
+  if (mode === 'assign') {
+    return count > 1 ? fill(text.move.confirmAssignMany, { n: count }) : text.move.confirmAssign;
+  }
+  return count > 1 ? fill(text.move.confirmMany, { n: count }) : text.move.confirm;
+}
+
+interface ConfirmProps {
   readonly mode: MoveMode;
   readonly people: readonly WorkspacePerson[];
   readonly target: WorkspaceUnit;
   readonly positions: readonly PositionView[];
+  readonly today: string;
   readonly onBack: () => void;
   readonly onConfirm: (target: MoveTarget) => void;
+}
+
+/** The position travels with the people when they all share one; otherwise it is chosen. */
+function PositionPart({
+  sharedName,
+  positionId,
+  positions,
+  onChange,
+}: {
+  readonly sharedName: string | null;
+  readonly positionId: string;
+  readonly positions: readonly PositionView[];
+  readonly onChange: (value: string) => void;
 }) {
+  if (sharedName !== null) {
+    return <Muted>{fill(text.move.keepPosition, { position: sharedName })}</Muted>;
+  }
+  return (
+    <ChoiceField
+      id="move-position"
+      label={text.move.choosePosition}
+      value={positionId}
+      onChange={onChange}
+      blank={text.move.pickPosition}
+      options={positions}
+    />
+  );
+}
+
+function ConfirmStep({ mode, people, target, positions, today, onBack, onConfirm }: ConfirmProps) {
   const shared = sharedPosition(people);
   const [positionId, setPositionId] = useState(shared ?? '');
   const [teamId, setTeamId] = useState('');
-  const sharedName = positions.find((position) => position.id === shared)?.name ?? '';
-  const many = people.length > 1;
-  const confirmLabel = confirmText(mode, people.length);
+  const [validFrom, setValidFrom] = useState(today);
+  const sharedName = positions.find((position) => position.id === shared)?.name ?? null;
   const leavesTeam = people.some((person) => person.teamId !== null);
+  const confirm = () =>
+    onConfirm({ unitId: target.unit.id, positionId, teamId: teamId || null, validFrom });
   return (
     <div className="flex flex-col gap-3 p-3">
       <div className="flex items-center gap-2 text-sm">
         <span className="min-w-0 truncate">
-          {many ? fill(text.people.selected, { n: people.length }) : people[0]?.fullName}
+          {people.length > 1
+            ? fill(text.people.selected, { n: people.length })
+            : people[0]?.fullName}
         </span>
         <ArrowRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         <button
@@ -157,18 +203,12 @@ function ConfirmStep({
           {target.unit.name}
         </button>
       </div>
-      {shared ? (
-        <Muted>{fill(text.move.keepPosition, { position: sharedName })}</Muted>
-      ) : (
-        <ChoiceField
-          id="move-position"
-          label={text.move.choosePosition}
-          value={positionId}
-          onChange={setPositionId}
-          blank={text.move.pickPosition}
-          options={positions}
-        />
-      )}
+      <PositionPart
+        sharedName={sharedName}
+        positionId={positionId}
+        positions={positions}
+        onChange={setPositionId}
+      />
       {target.teams.length > 0 && (
         <ChoiceField
           id="move-team"
@@ -180,30 +220,23 @@ function ConfirmStep({
         />
       )}
       {leavesTeam && target.teams.length === 0 && <Muted>{text.move.teamReset}</Muted>}
-      <Muted className="text-xs">{text.move.effective}</Muted>
-      <Button
-        type="button"
-        size="sm"
-        disabled={positionId === ''}
-        onClick={() => onConfirm({ unitId: target.unit.id, positionId, teamId: teamId || null })}
-      >
+      <DateField
+        label={text.move.date}
+        hint={text.move.dateHint}
+        value={validFrom}
+        onChange={setValidFrom}
+      />
+      <Button type="button" size="sm" disabled={positionId === '' || !validFrom} onClick={confirm}>
         <CheckIcon aria-hidden="true" />
-        {confirmLabel}
+        {confirmText(mode, people.length)}
       </Button>
     </div>
   );
 }
 
-function confirmText(mode: MoveMode, count: number) {
-  if (mode === 'assign') {
-    return count > 1 ? fill(text.move.confirmAssignMany, { n: count }) : text.move.confirmAssign;
-  }
-  return count > 1 ? fill(text.move.confirmMany, { n: count }) : text.move.confirm;
-}
-
 /**
- * Two steps in one popover: pick the unit, then confirm what travels with the people
- * (their position, an optional team). No dialog: the row or selection bar stays in view.
+ * Two steps in one popover: pick the node, then confirm what travels with the people (their
+ * position, an optional team) and from which date. No dialog: the row or selection bar stays in view.
  */
 export function MovePopover({
   mode,
@@ -211,6 +244,7 @@ export function MovePopover({
   units,
   positions,
   currentUnitId,
+  today,
   onConfirm,
   trigger,
   defaultOpen = false,
@@ -237,6 +271,7 @@ export function MovePopover({
             people={people}
             target={target}
             positions={positions}
+            today={today}
             onBack={() => setTarget(null)}
             onConfirm={confirm}
           />

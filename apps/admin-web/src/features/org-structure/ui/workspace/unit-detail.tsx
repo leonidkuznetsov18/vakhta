@@ -1,16 +1,19 @@
-import type { ReactNode } from 'react';
 import type { PositionView } from '@vakhta/contracts';
 import {
+  ArchiveIcon,
+  ChevronRightIcon,
   ClockIcon,
   EllipsisVerticalIcon,
+  FolderInputIcon,
   FolderPlusIcon,
+  HistoryIcon,
   InfoIcon,
   PencilIcon,
-  Trash2Icon,
   UsersRoundIcon,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,55 +24,77 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Muted, StatusPill } from '@/components/app/page';
 import type { QueryFeedbackState } from '@/components/app/query-feedback';
+import { formatDate } from '@/lib/format';
+import { OrgUnitKind, type ResponsibleSlot } from '../../model/org-node';
 import type { WorkspacePerson, WorkspaceUnit } from '../../model/workspace';
-import { MasterBlock } from './master-block';
 import { PeopleTable, type MoveRequest, type PeopleDemo } from './people-table';
+import { ResponsiblesBlock } from './responsibles-block';
 import { fill, text } from './text';
 
 export interface DetailActions {
   readonly onMove: (request: MoveRequest) => void;
-  readonly onAssignMaster: (unitId: string, employeeId: string) => void;
-  readonly onClearMaster: (unitId: string) => void;
+  readonly onAssignResponsible: (unitId: string, slot: ResponsibleSlot, employeeId: string) => void;
+  readonly onClearResponsible: (unitId: string, slot: ResponsibleSlot) => void;
   readonly onEdit: (unit: WorkspaceUnit) => void;
   readonly onAddChild: (unit: WorkspaceUnit) => void;
-  readonly onDelete: (unit: WorkspaceUnit) => void;
+  readonly onMoveNode: (unit: WorkspaceUnit) => void;
+  readonly onArchive: (unit: WorkspaceUnit) => void;
   readonly onOpenShifts: (unit: WorkspaceUnit) => void;
   readonly onSelect: (key: string) => void;
 }
 
-/** Prototype-only switches that open popovers for the screenshots. */
+/** Prototype-only switches that open popovers and sections for the screenshots. */
 export interface DetailDemo extends PeopleDemo {
-  readonly masterPicker?: boolean;
+  readonly slotPicker?: ResponsibleSlot;
+  readonly historyOpen?: boolean;
+  readonly menuOpen?: boolean;
 }
 
-function Crumb({ children }: { readonly children: ReactNode }) {
-  return <span className="min-w-0 truncate">{children}</span>;
+interface Shared {
+  readonly units: readonly WorkspaceUnit[];
+  readonly positions: readonly PositionView[];
+  readonly today: string;
+  readonly editable: boolean;
+  readonly highlightId: string | null;
+  readonly queryState?: QueryFeedbackState;
+  readonly demo?: DetailDemo;
 }
 
 function UnitMenu({
   row,
   actions,
+  defaultOpen,
 }: {
   readonly row: WorkspaceUnit;
   readonly actions: DetailActions;
+  readonly defaultOpen: boolean;
 }) {
   const blocked = row.headcount > 0 || row.childIds.length > 0;
+  const canNest = row.unit.kind !== OrgUnitKind.SECTION;
   return (
-    <DropdownMenu>
+    <DropdownMenu defaultOpen={defaultOpen}>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="outline" size="icon-sm" aria-label={text.unit.edit}>
           <EllipsisVerticalIcon aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="min-w-48">
         <DropdownMenuItem onSelect={() => actions.onEdit(row)}>
           <PencilIcon aria-hidden="true" />
           {text.unit.edit}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => actions.onAddChild(row)}>
-          <FolderPlusIcon aria-hidden="true" />
-          {text.unit.addChild}
-        </DropdownMenuItem>
+        {canNest && (
+          <DropdownMenuItem onSelect={() => actions.onAddChild(row)}>
+            <FolderPlusIcon aria-hidden="true" />
+            {text.unit.addChild}
+          </DropdownMenuItem>
+        )}
+        {row.unit.kind !== OrgUnitKind.DIVISION && (
+          <DropdownMenuItem onSelect={() => actions.onMoveNode(row)}>
+            <FolderInputIcon aria-hidden="true" />
+            {text.unit.moveNode}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => actions.onOpenShifts(row)}>
           <ClockIcon aria-hidden="true" />
           {text.unit.shifts}
@@ -81,18 +106,57 @@ function UnitMenu({
               <DropdownMenuItem
                 variant="destructive"
                 disabled={blocked}
-                onSelect={() => actions.onDelete(row)}
+                onSelect={() => actions.onArchive(row)}
               >
-                <Trash2Icon aria-hidden="true" />
-                {text.unit.delete}
+                <ArchiveIcon aria-hidden="true" />
+                {text.unit.archive}
               </DropdownMenuItem>
             </span>
           </TooltipTrigger>
-          {blocked && <TooltipContent>{text.unit.deleteBlocked}</TooltipContent>}
+          <TooltipContent>
+            {blocked ? text.unit.archiveBlocked : text.unit.archiveHint}
+          </TooltipContent>
         </Tooltip>
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function Breadcrumb({
+  row,
+  onSelect,
+}: {
+  readonly row: WorkspaceUnit;
+  readonly onSelect: (key: string) => void;
+}) {
+  const ancestors = row.path.slice(0, -1);
+  return (
+    <p className="flex min-w-0 flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+      <span className="truncate">{row.siteName}</span>
+      {ancestors.map((step) => (
+        <span key={step.id} className="flex min-w-0 items-center gap-x-1">
+          <ChevronRightIcon aria-hidden="true" className="size-3 shrink-0" />
+          <button
+            type="button"
+            className="truncate rounded underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            onClick={() => onSelect(step.id)}
+          >
+            {step.name}
+          </button>
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function Facts({ row }: { readonly row: WorkspaceUnit }) {
+  const parts: string[] = [fill(text.list.people, { n: row.headcount })];
+  if (row.teams.length > 0) {
+    parts.push(`${text.unit.teams}: ${row.teams.map((team) => team.name).join(', ')}`);
+  }
+  if (row.zones > 0) parts.push(fill(text.unit.zonesCount, { n: row.zones }));
+  parts.push(`${text.unit.validFrom} ${formatDate(row.unit.validFrom)}`);
+  return <Muted className="text-xs">{parts.join(' · ')}</Muted>;
 }
 
 function UnitHeader({
@@ -100,50 +164,26 @@ function UnitHeader({
   units,
   editable,
   actions,
+  menuOpen,
 }: {
   readonly row: WorkspaceUnit;
   readonly units: readonly WorkspaceUnit[];
   readonly editable: boolean;
   readonly actions: DetailActions;
+  readonly menuOpen: boolean;
 }) {
   const childIds = new Set(row.childIds);
   const children = units.filter((unit) => childIds.has(unit.unit.id));
   return (
     <header className="flex flex-col gap-2">
+      <Breadcrumb row={row} onSelect={actions.onSelect} />
       <div className="flex flex-wrap items-start gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">{row.unit.name}</h2>
-          <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-            <Crumb>{row.siteName}</Crumb>
-            {row.parentName && (
-              <>
-                <span aria-hidden="true">›</span>
-                <button
-                  type="button"
-                  className="truncate underline-offset-4 hover:underline"
-                  onClick={() => row.unit.parentId && actions.onSelect(row.unit.parentId)}
-                >
-                  {row.parentName}
-                </button>
-              </>
-            )}
-            <span aria-hidden="true">·</span>
-            <span className="tabular-nums">{fill(text.list.people, { n: row.headcount })}</span>
-            {row.teams.length > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>
-                  {text.unit.teams}: {row.teams.map((team) => team.name).join(', ')}
-                </span>
-              </>
-            )}
-            {row.zones > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{fill(text.unit.zonesCount, { n: row.zones })}</span>
-              </>
-            )}
-          </p>
+          <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold [overflow-wrap:anywhere]">
+            {row.unit.name}
+            <StatusPill tone="neutral">{text.kinds[row.unit.kind]}</StatusPill>
+          </h2>
+          <Facts row={row} />
         </div>
         {editable ? (
           <div className="flex items-center gap-2">
@@ -151,7 +191,7 @@ function UnitHeader({
               <PencilIcon aria-hidden="true" />
               {text.unit.edit}
             </Button>
-            <UnitMenu row={row} actions={actions} />
+            <UnitMenu row={row} actions={actions} defaultOpen={menuOpen} />
           </div>
         ) : (
           <StatusPill tone="neutral">{text.unit.viewOnly}</StatusPill>
@@ -173,39 +213,82 @@ function UnitHeader({
   );
 }
 
-/** Everything about one unit on one screen: who answers for it, who works in it, what to do. */
+function HistorySection({
+  row,
+  defaultOpen,
+}: {
+  readonly row: WorkspaceUnit;
+  readonly defaultOpen: boolean;
+}) {
+  return (
+    <Collapsible defaultOpen={defaultOpen}>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="group flex items-center gap-1.5 rounded-md text-sm font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <ChevronRightIcon
+            aria-hidden="true"
+            className="size-4 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none"
+          />
+          <HistoryIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+          {text.unit.history}
+          <Muted className="text-xs tabular-nums">({row.history.length})</Muted>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {row.history.length === 0 ? (
+          <Muted className="mt-2 text-sm">{text.unit.historyEmpty}</Muted>
+        ) : (
+          <ol className="mt-2 flex flex-col gap-1.5 border-l border-border pl-4 text-sm">
+            {row.history.map((entry) => (
+              <li key={entry.id} className="flex flex-wrap items-baseline gap-x-2">
+                <span className="tabular-nums text-muted-foreground">{formatDate(entry.at)}</span>
+                <span className="[overflow-wrap:anywhere]">{entry.text}</span>
+                <Muted className="text-xs">{entry.author}</Muted>
+              </li>
+            ))}
+          </ol>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/** Everything about one node on one screen: who answers for it, who works in it, what to do. */
 export function UnitDetail({
   row,
-  units,
   people,
+  actions,
+  units,
   positions,
+  today,
   editable,
   highlightId,
   queryState,
-  actions,
   demo = {},
-}: {
+}: Shared & {
   readonly row: WorkspaceUnit;
-  readonly units: readonly WorkspaceUnit[];
-  /** Whole roster, for master candidates outside the unit. */
+  /** Whole roster, for responsible candidates outside the node. */
   readonly people: readonly WorkspacePerson[];
-  readonly positions: readonly PositionView[];
-  readonly editable: boolean;
-  readonly highlightId: string | null;
-  readonly queryState?: QueryFeedbackState;
   readonly actions: DetailActions;
-  readonly demo?: DetailDemo;
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <UnitHeader row={row} units={units} editable={editable} actions={actions} />
-      <MasterBlock
+      <UnitHeader
+        row={row}
+        units={units}
+        editable={editable}
+        actions={actions}
+        menuOpen={demo.menuOpen ?? false}
+      />
+      <ResponsiblesBlock
         row={row}
         candidates={people}
         editable={editable}
-        onAssign={(id) => actions.onAssignMaster(row.unit.id, id)}
-        onClear={() => actions.onClearMaster(row.unit.id)}
-        pickerOpen={demo.masterPicker}
+        onAssign={(slot, id) => actions.onAssignResponsible(row.unit.id, slot, id)}
+        onClear={(slot) => actions.onClearResponsible(row.unit.id, slot)}
+        pickerSlot={demo.slotPicker ?? null}
       />
       <section aria-label={text.unit.employees} className="flex flex-col gap-2">
         <h3 className="flex items-center gap-1.5 text-sm font-medium">
@@ -218,11 +301,12 @@ export function UnitDetail({
           units={units}
           positions={positions}
           currentUnitId={row.unit.id}
+          today={today}
           editable={editable}
           highlightId={highlightId}
           queryState={queryState}
           onMove={actions.onMove}
-          onMakeMaster={(person) => actions.onAssignMaster(row.unit.id, person.id)}
+          onMakeHead={(person) => actions.onAssignResponsible(row.unit.id, 'HEAD', person.id)}
           empty={text.unit.noEmployees}
           emptyDescription={text.unit.noEmployeesHint}
           emptyAction={
@@ -233,6 +317,7 @@ export function UnitDetail({
           demo={demo}
         />
       </section>
+      <HistorySection row={row} defaultOpen={demo.historyOpen ?? false} />
     </div>
   );
 }
@@ -240,22 +325,17 @@ export function UnitDetail({
 /** The pinned pool: people with no current position, and the fastest way to place them. */
 export function UnassignedDetail({
   people,
+  actions,
   units,
   positions,
+  today,
   editable,
   highlightId,
   queryState,
-  actions,
   demo = {},
-}: {
+}: Shared & {
   readonly people: readonly WorkspacePerson[];
-  readonly units: readonly WorkspaceUnit[];
-  readonly positions: readonly PositionView[];
-  readonly editable: boolean;
-  readonly highlightId: string | null;
-  readonly queryState?: QueryFeedbackState;
   readonly actions: Pick<DetailActions, 'onMove'>;
-  readonly demo?: DetailDemo;
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -276,6 +356,7 @@ export function UnassignedDetail({
         units={units}
         positions={positions}
         currentUnitId={null}
+        today={today}
         editable={editable}
         highlightId={highlightId}
         queryState={queryState}

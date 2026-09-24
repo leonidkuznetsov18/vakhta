@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/app/avatar';
 import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
 import { Muted, StatusPill } from '@/components/app/page';
-import { formatDate } from '@/lib/format';
 import type { QueryFeedbackState } from '@/components/app/query-feedback';
+import { formatDate } from '@/lib/format';
 import type { WorkspacePerson, WorkspaceUnit } from '../../model/workspace';
 import { MovePopover, type MoveMode, type MoveTarget } from './move-popover';
 import { fill, text } from './text';
@@ -22,6 +22,7 @@ interface Destinations {
   readonly units: readonly WorkspaceUnit[];
   readonly positions: readonly PositionView[];
   readonly currentUnitId: string | null;
+  readonly today: string;
 }
 
 /** Prototype only: opens popovers and preselects rows for the screenshots. */
@@ -37,7 +38,7 @@ interface Props extends Destinations {
   readonly highlightId: string | null;
   readonly queryState?: QueryFeedbackState;
   readonly onMove: (request: MoveRequest) => void;
-  readonly onMakeMaster?: (person: WorkspacePerson) => void;
+  readonly onMakeHead?: (person: WorkspacePerson) => void;
   readonly empty: string;
   readonly emptyDescription?: string;
   readonly emptyAction?: ReactNode;
@@ -93,6 +94,12 @@ function placedColumns(): Column<WorkspacePerson>[] {
       header: text.people.position,
       cell: (person) => person.positionName ?? <Muted>{text.people.noPosition}</Muted>,
       sortValue: (person) => person.positionName ?? '',
+    },
+    {
+      key: 'manager',
+      header: text.people.manager,
+      cell: (person) => person.managerName ?? <Muted>{text.slots.missing}</Muted>,
+      sortValue: (person) => person.managerName ?? '',
     },
     {
       key: 'team',
@@ -155,24 +162,22 @@ function SelectionBar({
 }) {
   const label = to.mode === 'assign' ? text.people.assignSelected : text.people.moveSelected;
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <MovePopover
-        {...to}
-        people={chosen}
-        defaultOpen={openTargetId !== undefined}
-        initialTargetId={openTargetId}
-        onConfirm={(target) => {
-          onMove({ people: chosen, target });
-          onClear();
-        }}
-        trigger={
-          <Button type="button" size="sm">
-            <ArrowRightLeftIcon aria-hidden="true" />
-            {label}
-          </Button>
-        }
-      />
-    </div>
+    <MovePopover
+      {...to}
+      people={chosen}
+      defaultOpen={openTargetId !== undefined}
+      initialTargetId={openTargetId}
+      onConfirm={(target) => {
+        onMove({ people: chosen, target });
+        onClear();
+      }}
+      trigger={
+        <Button type="button" size="sm">
+          <ArrowRightLeftIcon aria-hidden="true" />
+          {label}
+        </Button>
+      }
+    />
   );
 }
 
@@ -180,25 +185,35 @@ function rowActions(props: Props, person: WorkspacePerson): RowAction[] {
   const actions: RowAction[] = [
     { key: 'profile', label: text.people.profile, icon: UserRoundIcon, onSelect: () => undefined },
   ];
-  const makeMaster = props.onMakeMaster;
-  if (props.editable && makeMaster && props.mode === 'move') {
+  const makeHead = props.onMakeHead;
+  if (props.editable && makeHead && props.mode === 'move') {
     actions.push({
-      key: 'master',
-      label: text.people.makeMaster,
+      key: 'head',
+      label: text.people.makeHead,
       icon: UserRoundCheckIcon,
-      onSelect: () => makeMaster(person),
+      onSelect: () => makeHead(person),
     });
   }
   return actions;
 }
 
 /**
- * The people of one unit (or of no unit) with the one action that matters here: sending them
+ * The people of one node (or of no node) with the one action that matters here: sending them
  * somewhere else. Multi-select turns the same action into a bulk move.
  */
 export function PeopleTable(props: Props) {
-  const { mode, people, units, positions, currentUnitId, editable, onMove, demo = {} } = props;
-  const to: Destinations = { mode, units, positions, currentUnitId };
+  const {
+    mode,
+    people,
+    units,
+    positions,
+    currentUnitId,
+    today,
+    editable,
+    onMove,
+    demo = {},
+  } = props;
+  const to: Destinations = { mode, units, positions, currentUnitId, today };
   const [selected, setSelected] = useState<Set<string>>(new Set(demo.initialSelection ?? []));
   const byId = new Map(people.map((person) => [person.id, person]));
   const chosen = [...selected].flatMap((id) => byId.get(id) ?? []);

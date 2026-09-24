@@ -1,13 +1,16 @@
-import {
-  EmployeeStatusSchema,
-  type EmployeeView,
-  type OrgSnapshot,
-  type OrgUnitView,
-} from '@vakhta/contracts';
+import { EmployeeStatusSchema, type EmployeeView, type OrgSnapshot } from '@vakhta/contracts';
 import type { Locale } from '@vakhta/domain';
+import {
+  OrgUnitKind,
+  RESPONSIBLE_SLOTS,
+  ResponsibleSlot,
+  type HistoryEntry,
+  type OrgNodeView,
+  type ResponsibleAssignment,
+} from './org-node';
 import { buildOrgTree, type SiteNode, type UnitNode } from './unit-tree';
 
-/** One person as the workspace lists them: where they sit and what they do there. */
+/** One person as the workspace lists them: where they sit, what they do there, who answers for them. */
 export interface WorkspacePerson {
   readonly id: string;
   readonly fullName: string;
@@ -21,20 +24,19 @@ export interface WorkspacePerson {
   readonly positionName: string | null;
   readonly teamId: string | null;
   readonly teamName: string | null;
+  /** The head of the person's node unless the placement overrides it. */
+  readonly managerName: string | null;
 }
 
 /**
- * Why a unit asks for the administrator's attention. Every state is derived from the org
+ * Why a node asks for the administrator's attention. Every state is derived from the org
  * snapshot and the roster alone; a rule that needs another read is not on this list.
  */
 export const UnitAttention = {
-  /** No designated shift master. */
-  NO_MASTER: 'NO_MASTER',
-  /** The designated master is blocked or terminated. */
-  MASTER_INACTIVE: 'MASTER_INACTIVE',
-  /** The designated master's current position is in another unit. */
-  MASTER_ELSEWHERE: 'MASTER_ELSEWHERE',
-  /** Nobody's current position is in the unit or below it. */
+  NO_HEAD: 'NO_HEAD',
+  NO_SHIFT_MASTER: 'NO_SHIFT_MASTER',
+  RESPONSIBLE_INACTIVE: 'RESPONSIBLE_INACTIVE',
+  RESPONSIBLE_ELSEWHERE: 'RESPONSIBLE_ELSEWHERE',
   NO_EMPLOYEES: 'NO_EMPLOYEES',
 } as const;
 export type UnitAttention = (typeof UnitAttention)[keyof typeof UnitAttention];
@@ -43,6 +45,7 @@ export const MasterState = {
   MISSING: 'MISSING',
   ASSIGNED: 'ASSIGNED',
   INACTIVE: 'INACTIVE',
+  /** The person's placement is neither in this node nor below it. */
   ELSEWHERE: 'ELSEWHERE',
 } as const;
 export type MasterState = (typeof MasterState)[keyof typeof MasterState];
@@ -54,43 +57,58 @@ export type MasterInfo =
       readonly id: string;
       readonly name: string;
       readonly status: EmployeeView['status'];
-      /** Name of the unit the master actually works in, when it is another one. */
       readonly worksIn: string | null;
+      readonly since: string;
     };
 
+export interface ResponsibleInfo {
+  readonly slot: ResponsibleSlot;
+  readonly info: MasterInfo;
+  /** Name of the ancestor whose shift master answers here because this node names none. */
+  readonly inheritedFrom: string | null;
+}
+
 export interface WorkspaceUnit {
-  readonly unit: OrgUnitView;
+  readonly unit: OrgNodeView;
   readonly siteName: string;
   readonly parentName: string | null;
+  /** Names from the site's root down to this node, for the breadcrumb. */
+  readonly path: readonly { readonly id: string; readonly name: string }[];
   /** Nesting level under the site: roots are 0. */
   readonly depth: number;
   readonly childIds: readonly string[];
   readonly people: readonly WorkspacePerson[];
-  /** People of this unit and every unit below it. */
+  /** People of this node and every node below it. */
   readonly headcount: number;
-  readonly master: MasterInfo;
+  readonly responsibles: readonly ResponsibleInfo[];
   readonly attention: readonly UnitAttention[];
   readonly teams: readonly { readonly id: string; readonly name: string }[];
   readonly zones: number;
+  readonly history: readonly HistoryEntry[];
 }
 
 export interface WorkspaceTotals {
   readonly units: number;
   readonly employees: number;
   readonly unassigned: number;
-  readonly withoutMaster: number;
   readonly needingAttention: number;
 }
 
 export interface Workspace {
-  /** Units in reading order: site by site, parents before children. */
+  /** Nodes in reading order: site by site, parents before children. */
   readonly units: readonly WorkspaceUnit[];
   readonly unassigned: readonly WorkspacePerson[];
   readonly totals: WorkspaceTotals;
 }
 
+export interface WorkspaceOrg extends Pick<OrgSnapshot, 'sites' | 'positions' | 'teams' | 'zones'> {
+  readonly orgUnits: readonly OrgNodeView[];
+  readonly responsibles: readonly ResponsibleAssignment[];
+  readonly history: readonly HistoryEntry[];
+}
+
 export interface WorkspaceInput {
-  readonly org: Pick<OrgSnapshot, 'sites' | 'orgUnits' | 'positions' | 'teams' | 'zones'>;
+  readonly org: WorkspaceOrg;
   readonly employees: readonly EmployeeView[];
   readonly locale: Locale;
 }
@@ -138,11 +156,12 @@ function toPerson(employee: EmployeeView, names: Names): WorkspacePerson {
     status: employee.status,
     avatarVersion: employee.avatarVersion ?? null,
     createdAt: employee.createdAt,
+    managerName: null,
     ...placementOf(employee.currentPosition, names),
   };
 }
 
-/** Roster minus the terminated, grouped by unit; the unassigned sit under `null`. */
+/** Roster minus the terminated, grouped by node; the unassigned sit under `null`. */
 function indexPeople(input: WorkspaceInput) {
   const names = { positions: nameIndex(input.org.positions), teams: nameIndex(input.org.teams) };
   const byUnit = new Map<string | null, WorkspacePerson[]>();
@@ -159,66 +178,168 @@ function indexPeople(input: WorkspaceInput) {
   return byUnit;
 }
 
-function masterOf(
-  unit: OrgUnitView,
-  people: ReadonlyMap<string, WorkspacePerson>,
-  unitNames: ReadonlyMap<string, string>,
-): MasterInfo {
-  const master = unit.designatedMaster;
-  if (!master) return { state: MasterState.MISSING };
-  const base = { id: master.id, name: master.name, status: master.status, worksIn: null };
-  if (master.status !== EmployeeStatusSchema.enum.ACTIVE) {
+interface SlotLookup {
+  /** Every employee, terminated included: a slot may still point at one. */
+  readonly employees: ReadonlyMap<string, EmployeeView>;
+  readonly people: ReadonlyMap<string, WorkspacePerson>;
+  readonly unitNames: ReadonlyMap<string, string>;
+  readonly assignments: ReadonlyMap<string, ResponsibleAssignment>;
+}
+
+function slotKey(unitId: string, slot: ResponsibleSlot) {
+  return `${unitId}:${slot}`;
+}
+
+interface SlotQuery {
+  readonly unitId: string;
+  readonly slot: ResponsibleSlot;
+  /** The node and everything below it: a responsible placed there is not "elsewhere". */
+  readonly subtree: ReadonlySet<string>;
+}
+
+function responsibleOf({ unitId, slot, subtree }: SlotQuery, lookup: SlotLookup): MasterInfo {
+  const assignment = lookup.assignments.get(slotKey(unitId, slot));
+  const employee = assignment ? lookup.employees.get(assignment.employeeId) : undefined;
+  if (!assignment || !employee) return { state: MasterState.MISSING };
+  const base = {
+    id: employee.id,
+    name: employee.fullName,
+    status: employee.status,
+    worksIn: null,
+    since: assignment.validFrom,
+  };
+  if (employee.status !== EmployeeStatusSchema.enum.ACTIVE) {
     return { ...base, state: MasterState.INACTIVE };
   }
-  const worksIn = people.get(master.id)?.unitId ?? null;
-  if (worksIn && worksIn !== unit.id) {
-    return { ...base, state: MasterState.ELSEWHERE, worksIn: unitNames.get(worksIn) ?? null };
+  const worksIn = lookup.people.get(employee.id)?.unitId ?? null;
+  if (worksIn && !subtree.has(worksIn)) {
+    return {
+      ...base,
+      state: MasterState.ELSEWHERE,
+      worksIn: lookup.unitNames.get(worksIn) ?? null,
+    };
   }
   return { ...base, state: MasterState.ASSIGNED };
 }
 
-function attentionOf(master: MasterInfo, headcount: number): UnitAttention[] {
+function attentionOf(responsibles: readonly ResponsibleInfo[], headcount: number): UnitAttention[] {
   const list: UnitAttention[] = [];
-  if (master.state === MasterState.MISSING) list.push(UnitAttention.NO_MASTER);
-  if (master.state === MasterState.INACTIVE) list.push(UnitAttention.MASTER_INACTIVE);
-  if (master.state === MasterState.ELSEWHERE) list.push(UnitAttention.MASTER_ELSEWHERE);
+  const missing = (slot: ResponsibleSlot) =>
+    responsibles.some((row) => row.slot === slot && row.info.state === MasterState.MISSING);
+  if (missing(ResponsibleSlot.HEAD)) list.push(UnitAttention.NO_HEAD);
+  // A division has no shift-master rows at all, so it never asks for them.
+  if (missing(ResponsibleSlot.SHIFT_MASTER_DAY) || missing(ResponsibleSlot.SHIFT_MASTER_NIGHT)) {
+    list.push(UnitAttention.NO_SHIFT_MASTER);
+  }
+  if (responsibles.some((row) => row.info.state === MasterState.INACTIVE)) {
+    list.push(UnitAttention.RESPONSIBLE_INACTIVE);
+  }
+  if (responsibles.some((row) => row.info.state === MasterState.ELSEWHERE)) {
+    list.push(UnitAttention.RESPONSIBLE_ELSEWHERE);
+  }
   if (headcount === 0) list.push(UnitAttention.NO_EMPLOYEES);
   return list;
 }
 
+function subtreeIds(node: UnitNode, into: Set<string>): Set<string> {
+  into.add(node.unit.id);
+  for (const child of node.children) subtreeIds(child, into);
+  return into;
+}
+
 interface Flattener {
-  readonly input: WorkspaceInput;
   readonly people: ReadonlyMap<string | null, readonly WorkspacePerson[]>;
-  readonly personById: ReadonlyMap<string, WorkspacePerson>;
-  readonly unitNames: ReadonlyMap<string, string>;
+  readonly lookup: SlotLookup;
+  readonly nodes: ReadonlyMap<string, OrgNodeView>;
   readonly teamsByUnit: ReadonlyMap<string, readonly Named[]>;
   readonly zonesByUnit: ReadonlyMap<string, number>;
+  readonly historyByUnit: ReadonlyMap<string, readonly HistoryEntry[]>;
   readonly out: WorkspaceUnit[];
 }
 
 interface Placing {
   readonly node: UnitNode;
   readonly site: SiteNode;
-  readonly depth: number;
+  readonly path: readonly Named[];
+  readonly inherited: ReadonlyMap<ResponsibleSlot, ResponsibleInfo>;
 }
 
-function flatten({ node, site, depth }: Placing, ctx: Flattener) {
-  const unit = node.unit;
-  const master = masterOf(unit, ctx.personById, ctx.unitNames);
+/** Shift masters exist where shifts are worked: shops and sections, never a division. */
+function slotsOf(kind: OrgUnitKind): readonly ResponsibleSlot[] {
+  return kind === OrgUnitKind.DIVISION ? [ResponsibleSlot.HEAD] : RESPONSIBLE_SLOTS;
+}
+
+/**
+ * A node's own responsible for each slot; a shift-master slot the node leaves empty is answered
+ * by the nearest ancestor that fills it, the way scope inheritance works (spec 014, A4).
+ */
+function responsiblesOf(
+  { node, kind, inherited }: Pick<Placing, 'node' | 'inherited'> & { readonly kind: OrgUnitKind },
+  lookup: SlotLookup,
+): ResponsibleInfo[] {
+  const subtree = subtreeIds(node, new Set());
+  return slotsOf(kind).map((slot) => {
+    const own = responsibleOf({ unitId: node.unit.id, slot, subtree }, lookup);
+    const fallback = inherited.get(slot);
+    if (own.state === MasterState.MISSING && slot !== ResponsibleSlot.HEAD && fallback) {
+      return fallback;
+    }
+    return { slot, info: own, inheritedFrom: null };
+  });
+}
+
+/** What the children inherit: every filled shift-master slot, credited to this node. */
+function inheritable(
+  responsibles: readonly ResponsibleInfo[],
+  nodeName: string,
+): Map<ResponsibleSlot, ResponsibleInfo> {
+  const map = new Map<ResponsibleSlot, ResponsibleInfo>();
+  for (const row of responsibles) {
+    if (row.slot === ResponsibleSlot.HEAD || row.info.state === MasterState.MISSING) continue;
+    map.set(row.slot, { ...row, inheritedFrom: row.inheritedFrom ?? nodeName });
+  }
+  return map;
+}
+
+function headNameOf(responsibles: readonly ResponsibleInfo[]): string | null {
+  const head = responsibles.find((row) => row.slot === ResponsibleSlot.HEAD)?.info;
+  if (!head || head.state === MasterState.MISSING) return null;
+  return head.name;
+}
+
+/** The node's people with their manager filled in: the head, unless the placement names one. */
+function peopleOf(unitId: string, headName: string | null, ctx: Flattener): WorkspacePerson[] {
+  return (ctx.people.get(unitId) ?? []).map((person) => ({
+    ...person,
+    managerName: person.managerName ?? headName,
+  }));
+}
+
+function flatten({ node, site, path, inherited }: Placing, ctx: Flattener) {
+  const unit = ctx.nodes.get(node.unit.id);
+  if (!unit) return;
+  const responsibles = responsiblesOf({ node, kind: unit.kind, inherited }, ctx.lookup);
+  const people = peopleOf(unit.id, headNameOf(responsibles), ctx);
+  const nextPath = [...path, { id: unit.id, name: unit.name }];
   ctx.out.push({
     unit,
     siteName: site.site.name,
-    parentName: unit.parentId ? (ctx.unitNames.get(unit.parentId) ?? null) : null,
-    depth,
+    parentName: path.at(-1)?.name ?? null,
+    path: nextPath,
+    depth: path.length,
     childIds: node.children.map((child) => child.unit.id),
-    people: ctx.people.get(unit.id) ?? [],
+    people,
     headcount: node.headcount,
-    master,
-    attention: attentionOf(master, node.headcount),
+    responsibles,
+    attention: attentionOf(responsibles, node.headcount),
     teams: ctx.teamsByUnit.get(unit.id) ?? [],
     zones: ctx.zonesByUnit.get(unit.id) ?? 0,
+    history: ctx.historyByUnit.get(unit.id) ?? [],
   });
-  for (const child of node.children) flatten({ node: child, site, depth: depth + 1 }, ctx);
+  const passDown = inheritable(responsibles, unit.name);
+  for (const child of node.children) {
+    flatten({ node: child, site, path: nextPath, inherited: passDown }, ctx);
+  }
 }
 
 function groupBy<T>(rows: readonly T[], key: (row: T) => string) {
@@ -237,24 +358,39 @@ function countBy<T>(rows: readonly T[], key: (row: T) => string) {
   return counts;
 }
 
-/** Everything the units workspace shows, computed once from the two reads it depends on. */
+/** Everything the structure section shows, computed once from the two reads it depends on. */
 export function buildWorkspace(input: WorkspaceInput): Workspace {
   const people = indexPeople(input);
   const personById = new Map<string, WorkspacePerson>();
   for (const group of people.values())
     for (const person of group) personById.set(person.id, person);
+  const live = input.org.orgUnits.filter((unit) => unit.archivedAt === null);
   const ctx: Flattener = {
-    input,
     people,
-    personById,
-    unitNames: nameIndex(input.org.orgUnits),
+    lookup: {
+      employees: new Map(input.employees.map((employee) => [employee.id, employee])),
+      people: personById,
+      unitNames: nameIndex(input.org.orgUnits),
+      assignments: new Map(
+        input.org.responsibles.map((row) => [slotKey(row.unitId, row.slot), row]),
+      ),
+    },
+    nodes: new Map(live.map((unit) => [unit.id, unit])),
     teamsByUnit: groupBy(input.org.teams, (team) => team.orgUnitId),
     zonesByUnit: countBy(input.org.zones, (zone) => zone.orgUnitId),
+    historyByUnit: groupBy(input.org.history, (entry) => entry.unitId),
     out: [],
   };
-  const tree = buildOrgTree({ org: input.org, employees: input.employees, locale: input.locale });
-  for (const site of tree)
-    for (const root of site.units) flatten({ node: root, site, depth: 0 }, ctx);
+  const tree = buildOrgTree({
+    org: { sites: input.org.sites, orgUnits: live },
+    employees: input.employees,
+    locale: input.locale,
+  });
+  for (const site of tree) {
+    for (const root of site.units) {
+      flatten({ node: root, site, path: [], inherited: new Map() }, ctx);
+    }
+  }
   const unassigned = people.get(null) ?? [];
   return {
     units: ctx.out,
@@ -263,13 +399,12 @@ export function buildWorkspace(input: WorkspaceInput): Workspace {
       units: ctx.out.length,
       employees: personById.size,
       unassigned: unassigned.length,
-      withoutMaster: ctx.out.filter((row) => row.master.state === MasterState.MISSING).length,
       needingAttention: ctx.out.filter((row) => row.attention.length > 0).length,
     },
   };
 }
 
-/** Identifier of the pinned "no unit" row in the unit list. */
+/** Identifier of the pinned "no node" row in the tree. */
 export const UNASSIGNED_KEY = 'unassigned';
 
 function matches(text: string | null, needle: string) {
@@ -281,7 +416,7 @@ export interface PersonHit {
   readonly unitName: string | null;
 }
 
-/** People whose name or number match, with the unit they sit in, for the global search. */
+/** People whose name or number match, with the node they sit in, for the global search. */
 export function searchPeople(workspace: Workspace, query: string): PersonHit[] {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [];
@@ -297,9 +432,29 @@ export function searchPeople(workspace: Workspace, query: string): PersonHit[] {
   return hits;
 }
 
-/** Units whose name matches; a blank query keeps them all. */
+/** Nodes whose name matches, together with their ancestors so the tree keeps its shape. */
 export function searchUnits(units: readonly WorkspaceUnit[], query: string): WorkspaceUnit[] {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [...units];
-  return units.filter((row) => matches(row.unit.name, needle));
+  const keep = new Set<string>();
+  for (const row of units) {
+    if (!matches(row.unit.name, needle)) continue;
+    for (const step of row.path) keep.add(step.id);
+  }
+  return units.filter((row) => keep.has(row.unit.id));
+}
+
+/** Rows visible after collapsing: a collapsed node hides everything below it. */
+export function visibleUnits(
+  units: readonly WorkspaceUnit[],
+  collapsed: ReadonlySet<string>,
+): WorkspaceUnit[] {
+  const out: WorkspaceUnit[] = [];
+  let hiddenBelow: number | null = null;
+  for (const row of units) {
+    if (hiddenBelow !== null && row.depth > hiddenBelow) continue;
+    hiddenBelow = collapsed.has(row.unit.id) ? row.depth : null;
+    out.push(row);
+  }
+  return out;
 }
