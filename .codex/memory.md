@@ -107,4 +107,4 @@ owner appends after merging work; parallel agents return proposed entries instea
   responsible mechanic, emergency repair beside incidents. This is the separate decision that brings
   "equipment" into scope. See `specs/014-equipment-maintenance/` and ADR-0018 (proposed).
 - Unresolved (owner): D-1 meter hours now or later, D-2 `CHIEF_MECHANIC` role, D-3 who accepts
-  planned maintenance. Pilot machines: NEWTOP FB100S, FB158S, FB118Dt (`pilot-equipment.md`).
+  planned maintenance. Pilot machines: NEWTOP FB100S, FB158S, 118DT (`pilot-equipment.md`).
