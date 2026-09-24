@@ -5,6 +5,9 @@ import {
   CameraIcon,
   CircleCheckIcon,
   CircleDashedIcon,
+  ClipboardPenIcon,
+  Undo2Icon,
+  UserRoundIcon,
   XCircleIcon,
 } from 'lucide-react';
 import type { WorkDetail, WorkOperationView } from '@vakhta/contracts';
@@ -22,15 +25,13 @@ import {
   maintenanceQueries,
 } from '@/entities/maintenance';
 import { useConfirm } from '@/components/app/confirm-dialog';
-import { RowMenu } from '@/components/app/data-table';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
-import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, StatusPill, type PillTone } from '@/components/app/page';
 import { QueryFeedback } from '@/components/app/query-feedback';
+import { SheetActions, type SheetAction } from '@/components/app/sheet-actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { describeError } from '@/errors';
@@ -307,24 +308,30 @@ function ReviewButtons({
   const deciding = (decision: ReviewDecision) =>
     review.isPending && review.variables.decision === decision;
   return (
-    <>
-      <Button
-        variant="outline"
-        disabled={!comment.trim() || review.isPending}
-        pending={deciding(ReviewDecision.RETURNED)}
-        onClick={() => review.mutate({ decision: ReviewDecision.RETURNED, comment })}
-      >
-        {t.return}
-      </Button>
-      <Button
-        variant="success"
-        disabled={review.isPending}
-        pending={deciding(ReviewDecision.ACCEPTED)}
-        onClick={() => review.mutate({ decision: ReviewDecision.ACCEPTED, comment })}
-      >
-        {t.accept}
-      </Button>
-    </>
+    <SheetActions
+      actions={[
+        {
+          key: 'return',
+          label: t.return,
+          tooltip: t.actionHints.return,
+          disabledHint: t.actionHints.returnNeedsComment,
+          icon: Undo2Icon,
+          disabled: !comment.trim() || review.isPending,
+          pending: deciding(ReviewDecision.RETURNED),
+          onSelect: () => review.mutate({ decision: ReviewDecision.RETURNED, comment }),
+        },
+        {
+          key: 'accept',
+          label: t.accept,
+          tooltip: t.actionHints.accept,
+          icon: CircleCheckIcon,
+          variant: 'success',
+          disabled: review.isPending,
+          pending: deciding(ReviewDecision.ACCEPTED),
+          onSelect: () => review.mutate({ decision: ReviewDecision.ACCEPTED, comment }),
+        },
+      ]}
+    />
   );
 }
 
@@ -338,18 +345,25 @@ function ReleaseButton({
   const t = maintenanceMessages();
   const release = releaseState(work);
   if (release === ReleaseState.HIDDEN) return null;
-  const ready = release === ReleaseState.READY;
   return (
-    <span className="flex items-center gap-1">
-      <Button variant="success" disabled={!ready} onClick={() => onRelease(work.equipment.id)}>
-        {t.card.release}
-      </Button>
-      {ready ? null : <InfoTip text={t.workCard.releaseHint} />}
-    </span>
+    <SheetActions
+      actions={[
+        {
+          key: 'release',
+          label: t.card.release,
+          tooltip: t.card.actionHints.release,
+          disabledHint: t.workCard.releaseHint,
+          icon: CircleCheckIcon,
+          variant: 'success',
+          disabled: release !== ReleaseState.READY,
+          onSelect: () => onRelease(work.equipment.id),
+        },
+      ]}
+    />
   );
 }
 
-/** Changes of unfinished work; the rare, destructive cancellation waits in the "⋯" menu. */
+/** Changes of unfinished work, every one in view with its icon; cancellation asks for a reason. */
 function ChangeButtons({ work }: { readonly work: WorkDetail }) {
   const t = maintenanceMessages();
   const [dialog, setDialog] = useState<ChangeDialog>(ChangeDialog.NONE);
@@ -372,34 +386,53 @@ function ChangeButtons({ work }: { readonly work: WorkDetail }) {
     if (reason !== false) cancel.mutate(reason);
   };
   const close = () => setDialog(ChangeDialog.NONE);
+  const record: SheetAction[] = canRecordCompletion(work)
+    ? [
+        {
+          key: 'record',
+          label: t.workCard.record,
+          tooltip: t.workCard.actionHints.record,
+          icon: ClipboardPenIcon,
+          onSelect: () => setDialog(ChangeDialog.RECORD),
+        },
+      ]
+    : [];
+  const replan: SheetAction[] = isRepair(work)
+    ? []
+    : [
+        {
+          key: 'replan',
+          label: t.workCard.replan,
+          tooltip: t.workCard.actionHints.replan,
+          icon: CalendarDaysIcon,
+          onSelect: () => setDialog(ChangeDialog.REPLAN),
+        },
+      ];
   return (
     <>
       <Feedback error={cancel.error ? describeError(cancel.error) : null} />
-      <RowMenu
-        label={t.moreActions}
+      <SheetActions
         actions={[
           {
             key: 'cancel',
             label: t.workCard.cancel,
-            destructive: true,
+            tooltip: t.workCard.actionHints.cancel,
+            icon: XCircleIcon,
+            variant: 'destructive',
             pending: cancel.isPending,
             onSelect: () => void askCancel(),
           },
+          ...record,
+          ...replan,
+          {
+            key: 'reassign',
+            label: t.workCard.reassign,
+            tooltip: t.workCard.actionHints.reassign,
+            icon: UserRoundIcon,
+            onSelect: () => setDialog(ChangeDialog.REASSIGN),
+          },
         ]}
       />
-      {canRecordCompletion(work) ? (
-        <Button variant="outline" onClick={() => setDialog(ChangeDialog.RECORD)}>
-          {t.workCard.record}
-        </Button>
-      ) : null}
-      {isRepair(work) ? null : (
-        <Button variant="outline" onClick={() => setDialog(ChangeDialog.REPLAN)}>
-          {t.workCard.replan}
-        </Button>
-      )}
-      <Button variant="outline" onClick={() => setDialog(ChangeDialog.REASSIGN)}>
-        {t.workCard.reassign}
-      </Button>
       {dialog === ChangeDialog.REPLAN ? <ReplanDialog work={work} onClose={close} /> : null}
       {dialog === ChangeDialog.REASSIGN ? <ReassignDialog work={work} onClose={close} /> : null}
       {dialog === ChangeDialog.RECORD ? (

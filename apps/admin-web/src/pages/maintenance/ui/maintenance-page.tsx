@@ -163,7 +163,8 @@ export function MaintenancePage({
         onNavigate={onNavigate}
         onCreate={() => setForm({ kind: 'create' })}
       />
-      {id ? (
+      {/* One panel at a time: the plan editor takes the card's place instead of stacking on it. */}
+      {id && !plan ? (
         <OpenRecord
           tab={tab}
           openId={id}

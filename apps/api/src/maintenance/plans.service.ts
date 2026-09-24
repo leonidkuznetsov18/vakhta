@@ -21,7 +21,13 @@ import {
   type Database,
   type Transaction,
 } from '@vakhta/db';
-import type { PlanContent, PlanDetail, PlanIssue, PlanRow } from '@vakhta/contracts';
+import type {
+  EquipmentMaterialView,
+  PlanContent,
+  PlanDetail,
+  PlanIssue,
+  PlanRow,
+} from '@vakhta/contracts';
 import {
   AnchorMode,
   FINAL_WORK_STATUSES,
@@ -151,6 +157,49 @@ export class PlansService {
     });
   }
 
+  /** What the machine's published plans need, one row per item, in plan then list order. */
+  async materialsForEquipment(plans: readonly PlanRow[]): Promise<EquipmentMaterialView[]> {
+    const published = plans.filter((plan) => plan.state !== PlanState.DRAFT);
+    if (!published.length) return [];
+    const byPlan = new Map(published.map((plan) => [plan.id, plan]));
+    const rows = await this.db
+      .select({
+        planId: maintenancePlans.id,
+        ordinal: maintenancePlanMaterials.ordinal,
+        kind: maintenancePlanMaterials.kind,
+        name: maintenancePlanMaterials.name,
+        article: maintenancePlanMaterials.article,
+        quantity: maintenancePlanMaterials.quantity,
+        unit: maintenancePlanMaterials.unit,
+        mode: maintenancePlanMaterials.mode,
+      })
+      .from(maintenancePlans)
+      .innerJoin(
+        maintenancePlanMaterials,
+        eq(maintenancePlanMaterials.versionId, maintenancePlans.activeVersionId),
+      )
+      .where(inArray(maintenancePlans.id, [...byPlan.keys()]))
+      .orderBy(asc(maintenancePlans.title), asc(maintenancePlanMaterials.ordinal));
+    return rows.flatMap((row) => {
+      const plan = byPlan.get(row.planId);
+      if (!plan) return [];
+      return [
+        {
+          planId: plan.id,
+          planTitle: plan.title,
+          planState: plan.state,
+          nextDueOn: plan.nextDueOn,
+          kind: row.kind,
+          name: row.name,
+          article: row.article,
+          quantity: Number(row.quantity),
+          unit: row.unit,
+          mode: row.mode,
+        },
+      ];
+    });
+  }
+
   private sourceLabel(version: VersionRow | undefined, docs: Map<string, string>): string {
     if (!version) return '';
     if (version.sourceKind === PlanSourceKind.DOCUMENT && version.sourceDocumentId)
@@ -205,6 +254,7 @@ export class PlansService {
       intervalCount: version.intervalCount,
       anchorMode: version.anchorMode,
       firstDueOn: plan.firstDueOn,
+      reminderDays: plan.reminderDays,
       sourceKind: version.sourceKind,
       sourceDocumentId: version.sourceDocumentId,
       sourceReference: version.sourceReference ?? undefined,
@@ -340,6 +390,7 @@ export class PlansService {
         equipmentId,
         title: content.title,
         firstDueOn: content.firstDueOn,
+        reminderDays: content.reminderDays,
         createdBy: actor.id ?? 'system',
       })
       .returning({ id: maintenancePlans.id });
@@ -445,6 +496,7 @@ export class PlansService {
         .set({
           title: content.title,
           firstDueOn: content.firstDueOn,
+          reminderDays: content.reminderDays,
           version: plan.version + 1,
           updatedAt: now,
         })

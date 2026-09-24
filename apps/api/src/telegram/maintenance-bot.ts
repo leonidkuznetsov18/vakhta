@@ -10,11 +10,11 @@ import {
   type EmployeeAccess,
   type MaintenanceCallback,
 } from '@vakhta/domain';
-import type { Messages } from '@vakhta/i18n';
+import { format, type Messages } from '@vakhta/i18n';
 import { MaterialsUsedKind } from '@vakhta/contracts';
 import { DomainError } from '../common/domain-error.js';
 import type { ShortTermStore } from '../infra/short-term-store.js';
-import type { DocumentsService } from '../maintenance/documents.service.js';
+import { ManualKind, type DocumentsService } from '../maintenance/documents.service.js';
 import type { EmergencyService } from '../maintenance/emergency.service.js';
 import type { MechanicWorkService } from '../maintenance/mechanic-work.service.js';
 import type { OperationPhoto, WorkActionsService } from '../maintenance/work-actions.service.js';
@@ -298,15 +298,21 @@ class MaintenanceBot {
       return;
     }
     await ctx.answerCallbackQuery();
+    // A manual kept as a public link is sent as its address; only presigned links stay out (C7).
+    if (manual.kind === ManualKind.LINK) {
+      const { title, url } = manual.link;
+      await show(ctx, { text: format(ctx.t.maintenance.bot.manualLink, { title, url }) });
+      return;
+    }
+    const file = manual.file;
     try {
-      const file =
-        manual.telegramFileId ?? new InputFile(manual.bytes, manual.title + PDF_EXTENSION);
-      const sent = await ctx.replyWithDocument(file);
+      const document = file.telegramFileId ?? new InputFile(file.bytes, file.title + PDF_EXTENSION);
+      const sent = await ctx.replyWithDocument(document);
       // Telegram keeps the upload; the next send reuses its file id instead of the bytes.
-      if (!manual.telegramFileId)
-        await this.deps.documents.rememberTelegramFile(manual.documentId, sent.document.file_id);
+      if (!file.telegramFileId)
+        await this.deps.documents.rememberTelegramFile(file.documentId, sent.document.file_id);
     } catch (error) {
-      this.deps.logger.warn({ err: error, documentId: manual.documentId }, 'manual send failed');
+      this.deps.logger.warn({ err: error, documentId: file.documentId }, 'manual send failed');
       await show(ctx, { text: ctx.t.maintenance.bot.documentFailed });
     }
   }

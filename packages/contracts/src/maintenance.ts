@@ -146,7 +146,9 @@ export const EquipmentDocumentView = z.object({
   language: z.string().nullable(),
   edition: z.string().nullable(),
   sourceUrl: z.string().nullable(),
-  sizeBytes: z.number().int().positive(),
+  /** Null for a document kept only as a link to the manufacturer's site. */
+  sizeBytes: z.number().int().positive().nullable(),
+  hasFile: z.boolean(),
   uploadedBy: z.string(),
   createdAt: IsoDateTime,
   linkedAt: IsoDateTime,
@@ -171,6 +173,16 @@ export const DocumentUploadQuery = z.object({
     .optional(),
 });
 export type DocumentUploadQuery = z.infer<typeof DocumentUploadQuery>;
+
+/** A document that lives on the web: the machine keeps the link, not a file (FR-008). */
+export const DocumentLinkInput = DocumentUploadQuery.extend({
+  sourceUrl: z
+    .string()
+    .trim()
+    .max(1000)
+    .regex(/^https?:\/\//),
+});
+export type DocumentLinkInput = z.infer<typeof DocumentLinkInput>;
 
 export const DocumentLinkView = z.object({ url: z.string(), expiresAt: IsoDateTime });
 export type DocumentLinkView = z.infer<typeof DocumentLinkView>;
@@ -206,6 +218,8 @@ export const PlanContent = z.object({
   estimatedMinutes: z.number().int().min(1).max(10_000),
   requiresStop: z.boolean(),
   assigneeEmployeeId: Uuid.nullable(),
+  /** Days before the planned date for this plan's reminders; null follows the client parameters. */
+  reminderDays: z.array(z.number().int().min(1).max(90)).max(5).nullable().default(null),
   operations: z.array(PlanOperationInput).max(100),
   materials: z.array(PlanMaterialInput).max(100),
 });
@@ -483,6 +497,21 @@ export const MechanicOption = z.object({
 });
 export type MechanicOption = z.infer<typeof MechanicOption>;
 
+/** One item a plan needs, read across the machine's plans (owner request 2026-09-25). */
+export const EquipmentMaterialView = z.object({
+  planId: Uuid,
+  planTitle: z.string(),
+  planState: PlanStateSchema,
+  nextDueOn: BusinessDate.nullable(),
+  kind: MaterialKindSchema,
+  name: z.string(),
+  article: z.string().nullable(),
+  quantity: z.number(),
+  unit: z.string(),
+  mode: MaterialModeSchema,
+});
+export type EquipmentMaterialView = z.infer<typeof EquipmentMaterialView>;
+
 export const EquipmentDetail = EquipmentRow.extend({
   manufacturer: z.string().nullable(),
   serialNumber: z.string().nullable(),
@@ -491,6 +520,7 @@ export const EquipmentDetail = EquipmentRow.extend({
   notes: z.string().nullable(),
   documents: z.array(EquipmentDocumentView),
   plans: z.array(PlanRow),
+  materials: z.array(EquipmentMaterialView),
   openStop: z.object({ startedAt: IsoDateTime }).nullable(),
   history: z.array(WorkHistoryItem),
 });

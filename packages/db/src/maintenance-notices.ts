@@ -16,6 +16,7 @@ import {
   maintenancePlanMaterials,
   maintenancePlanOperations,
   maintenancePlanVersions,
+  maintenancePlans,
   workOrders,
 } from './schema/maintenance.js';
 import { orgUnits, responsibilityZones, sites } from './schema/org.js';
@@ -30,6 +31,8 @@ export interface WorkNoticeContext {
   /** The unit master, an employee who can receive Telegram escalations (spec A-3). */
   readonly masterId: string | null;
   readonly timezone: string;
+  /** The plan's own reminder days; null means the client parameters apply. */
+  readonly reminderDays: readonly number[] | null;
   /** ISO business dates, for the handlers' own checks. */
   readonly plannedOn: string | null;
   readonly dueOn: string | null;
@@ -65,9 +68,11 @@ async function loadHead(db: DbOrTx, workOrderId: string) {
       masterId: orgUnits.masterEmployeeId,
       zoneName: responsibilityZones.name,
       timezone: sites.timezone,
+      reminderDays: maintenancePlans.reminderDays,
       reporter: sql<string | null>`coalesce(${reporterEmployee}, ${reporterUser})`,
     })
     .from(workOrders)
+    .leftJoin(maintenancePlans, eq(maintenancePlans.id, workOrders.planId))
     .innerJoin(equipment, eq(equipment.id, workOrders.equipmentId))
     .innerJoin(orgUnits, eq(orgUnits.id, equipment.orgUnitId))
     .innerJoin(sites, eq(sites.id, equipment.siteId))
@@ -188,6 +193,7 @@ export async function loadWorkNotice(
     backupId: head.backupId,
     masterId: head.masterId,
     timezone: head.timezone,
+    reminderDays: head.reminderDays,
     plannedOn: order.plannedOn,
     dueOn: order.dueOn,
     acceptedAt: order.acceptedAt,

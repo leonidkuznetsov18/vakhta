@@ -16,6 +16,7 @@ import type { FastifyRequest } from 'fastify';
 import {
   ApplyPlanVersionCommand,
   CalendarQuery,
+  DocumentLinkInput,
   DocumentUploadQuery,
   EmergencyCreateCommand,
   EquipmentInput,
@@ -197,6 +198,17 @@ export class MaintenanceController {
       throw new DomainError('DOCUMENT_TOO_LARGE', 413, 'Document exceeds 50 MiB');
     }
     return this.documents.upload(id, { meta, bytes }, webUserActor(user));
+  }
+
+  @Post('equipment/:id/documents/link')
+  @Roles(...MAINTENANCE_MANAGERS)
+  async addDocumentLink(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DocumentLinkInput)) body: DocumentLinkInput,
+    @CurrentUser() user: WebUser,
+  ) {
+    await this.inScope(user, MAINTENANCE_MANAGERS, id);
+    return this.documents.addLink(id, body, webUserActor(user));
   }
 
   @Post('equipment/:id/documents/:documentId')

@@ -238,6 +238,7 @@ describe('Telegram: the mechanic works maintenance and repairs from the bot (spe
         estimatedMinutes: 30,
         requiresStop: true,
         assigneeEmployeeId: mechanic,
+        reminderDays: null,
         operations: [
           { text: 'Lubricate the cam', photoRequired: false },
           { text: 'Check the chain', photoRequired: photoOnSecond },

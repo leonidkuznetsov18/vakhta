@@ -3,7 +3,8 @@ import { focusWithoutTooltip } from './tooltip-focus';
 /**
  * Keyboard-first focus for dialogs and side panels: the first field gets the caret, not the first
  * button (Radix would otherwise focus an ⓘ tip and open its tooltip). Falls back to the first
- * ordinary button, then to the container itself.
+ * ordinary button, then to the container itself. Tab triggers are skipped: focusing one would
+ * select that tab and hide the panel's default tab.
  */
 export function focusFirstField(container: HTMLElement | null): void {
   if (!container) return;
@@ -13,7 +14,7 @@ export function focusFirstField(container: HTMLElement | null): void {
   const target =
     field ??
     container.querySelector<HTMLElement>(
-      'button:not([disabled]):not([data-info-tip]):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]), a[href]',
+      'button:not([disabled]):not([data-info-tip]):not([role="tab"]):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]), a[href]',
     ) ??
     container;
   if (target === container && !container.hasAttribute('tabindex')) {

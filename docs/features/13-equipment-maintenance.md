@@ -29,11 +29,17 @@ Three tabs:
   materials, the responsible and backup mechanic (never the same person). Filters by unit and state, and a search by code,
   model or mechanic. "Добавить оборудование" opens the form; only employees whose position maintains
   equipment can be responsible or backup.
-- **Machine card** (a row opens it): passport, "Документы" (PDF up to 50 MB; a warning when there is
-  no operating manual), "Планы ТО" and "История". Buttons: "Редактировать", "Архивировать",
-  "Аварийный ремонт", "Допустить к работе" for a stopped machine, and "Исправить состояние" for a
-  record error (a reason is required; not while a repair is open). A plan's "⋯" menu copies it to
-  another machine as a draft without the first date, source and mechanic, which are confirmed there.
+- **Machine card** (a row opens it): passport, "Документы", "Планы ТО", "Материалы" and "История".
+  A document is either a PDF up to 50 MB stored in the system (the bot sends it as a file) or a link
+  to the manufacturer's page or PDF, which opens in a new tab; a warning appears while there is no
+  operating manual. "Материалы" lists everything the published plans need — item, kind, quantity,
+  "щоразу" or "за потреби", and the plan with its next date — so the stock question is answered from
+  one list. The footer shows every action with an icon and a tooltip: "Редактировать",
+  "Архивировать", "Исправить состояние" for a record error (a reason is required; not while a repair
+  is open), "Аварийный ремонт", and "Допустить к работе" for a stopped machine; a phone shows the
+  icons only. A plan's "⋯" menu copies it to another machine as a draft without the first date,
+  source and mechanic, which are confirmed there. Opening a plan replaces the card with the plan
+  editor; closing it returns to the card.
 - **"Календарь ТО"** — the month: planned maintenance (cyan), materials missing (violet), overdue
   (orange), emergency repairs (red), completed (grey) and the forecast of later cycles (dotted, not
   work yet). Above the grid, a list of overdue maintenance. "Месяц" or "Неделя" view; filters by unit,
@@ -51,7 +57,10 @@ Three tabs:
 A plan says what to do and how often, based on the manual or on a documented plant decision:
 interval (days, weeks or months), counting "от выполнения" (the next date counts from the day the work
 was actually done) or "фиксированный календарь", the first date, duration, whether the machine must
-stop, the operations (each may require a photo) and the materials to have on hand.
+stop, the operations (each may require a photo) and the materials to have on hand (each item is a
+card: the name on its own line, kind, article, quantity, unit and need under it). The Telegram
+reminders follow the client parameters (7, 3 and 1 day before at 09:00 by default); a plan may set
+its own days, for example "14, 2", in the block "Кто выполняет".
 
 A draft creates nothing. "Опубликовать" creates the first work and the reminders; editing a published
 plan creates the next version, and open work keeps the version it was created from. A work card then

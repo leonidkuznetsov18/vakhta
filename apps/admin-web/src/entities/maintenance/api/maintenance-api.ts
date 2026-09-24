@@ -27,6 +27,7 @@ import {
   WorkDetail,
   WorkRow,
   type CalendarQuery,
+  type DocumentLinkInput,
   type DocumentUploadQuery,
   type EquipmentQuery,
   type WorkQuery,
@@ -102,6 +103,8 @@ export const maintenanceApi = {
     });
     return Created.parse(data);
   },
+  addDocumentLink: (equipmentId: string, input: DocumentLinkInput) =>
+    send(Created, `${root}/equipment/${equipmentId}/documents/link`, { data: input }),
   attachDocument: (equipmentId: string, documentId: string) =>
     send(Created, `${root}/equipment/${equipmentId}/documents/${documentId}`, {}),
   unlinkDocument: (equipmentId: string, documentId: string) =>

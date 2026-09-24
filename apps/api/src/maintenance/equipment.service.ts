@@ -265,6 +265,7 @@ export class EquipmentService {
       this.openStop(id),
       this.history(id),
     ]);
+    const materials = await this.plans.materialsForEquipment(plans);
     const source = located.row;
     return {
       ...row,
@@ -275,6 +276,7 @@ export class EquipmentService {
       notes: source.notes,
       documents,
       plans,
+      materials,
       openStop: stop ? { startedAt: stop.startedAt.toISOString() } : null,
       history,
     };

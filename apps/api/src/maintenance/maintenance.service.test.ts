@@ -50,6 +50,7 @@ import { TimerScheduler } from '../infra/timers.queue.js';
 import { maintenanceOptionsFrom } from './maintenance-options.js';
 import { maintenanceServices, MemoryStorage } from '../../test/maintenance.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
+import { ManualKind } from './documents.service.js';
 
 const CHIEF: Actor = { type: 'WEB_USER', id: null, role: 'CHIEF_MECHANIC', label: 'chief' };
 const DAY_MS = 86_400_000;
@@ -140,6 +141,7 @@ describe('equipment maintenance: register, manuals, plans, work and emergencies 
       estimatedMinutes: 60,
       requiresStop: true,
       assigneeEmployeeId: mechanic,
+      reminderDays: null,
       operations: [
         { text: 'Lubricate the main cam', photoRequired: false },
         { text: 'Check the chain tension', photoRequired: false },
@@ -264,13 +266,45 @@ describe('equipment maintenance: register, manuals, plans, work and emergencies 
       const docs = await services.documents.forEquipment(machine.id);
       expect(docs.map((doc) => doc.title)).toEqual(['FB100S manual']);
       const manual = await services.documents.manualFor(machine.id, null);
-      expect(manual?.documentId).toBe(uploaded.id);
-      expect(manual?.bytes?.length).toBe(bytes.length);
+      expect(manual?.kind).toBe(ManualKind.FILE);
+      if (manual?.kind !== ManualKind.FILE) return;
+      expect(manual.file.documentId).toBe(uploaded.id);
+      expect(manual.file.bytes?.length).toBe(bytes.length);
 
       await services.documents.rememberTelegramFile(uploaded.id, 'telegram-file');
       const cached = await services.documents.manualFor(machine.id, null);
-      expect(cached?.telegramFileId).toBe('telegram-file');
-      expect(cached?.bytes).toBeNull();
+      if (cached?.kind !== ManualKind.FILE) throw new Error('expected a file');
+      expect(cached.file.telegramFileId).toBe('telegram-file');
+      expect(cached.file.bytes).toBeNull();
+    });
+
+    it('keeps a document as a link when nothing is uploaded and hands the bot its address', async () => {
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const added = await services.documents.addLink(
+        machine.id,
+        {
+          title: 'NewTop catalogue',
+          kind: EquipmentDocumentKind.OTHER,
+          sourceUrl: 'https://example.com/catalogue.pdf',
+        },
+        CHIEF,
+      );
+
+      expect(storage.objects.size).toBe(0);
+      const [doc] = await services.documents.forEquipment(machine.id);
+      expect(doc).toMatchObject({ id: added.id, hasFile: false, sizeBytes: null });
+      expect(await services.documents.link(added.id, NOW)).toMatchObject({
+        url: 'https://example.com/catalogue.pdf',
+      });
+      const manual = await services.documents.manualFor(machine.id, null);
+      expect(manual).toEqual({
+        kind: ManualKind.LINK,
+        link: {
+          title: 'NewTop catalogue',
+          documentId: added.id,
+          url: 'https://example.com/catalogue.pdf',
+        },
+      });
     });
 
     it('rejects a file that is not a PDF and stores nothing', async () => {
@@ -326,6 +360,28 @@ describe('equipment maintenance: register, manuals, plans, work and emergencies 
         .sort((a, b) => a - b);
       expect(days).toEqual([1, 3, 7]);
       expect(await testDb.db.select().from(notificationOutbox)).toEqual([]);
+    });
+
+    it("a plan's own reminder days replace the client rule for its work", async () => {
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const plan = await services.plans.create(
+        machine.id,
+        planContent({ reminderDays: [2, 10] }),
+        CHIEF,
+      );
+      await services.plans.publish(plan.id, CHIEF, NOW);
+
+      const timers = await testDb.db
+        .select()
+        .from(backgroundTasks)
+        .where(eq(backgroundTasks.kind, 'MAINTENANCE_REMINDER'));
+      const days = timers
+        .map((task) =>
+          Math.round((Date.parse(`${FIRST_DUE_ON}T06:00:00Z`) - task.dueAt.getTime()) / DAY_MS),
+        )
+        .sort((a, b) => a - b);
+      expect(days).toEqual([2, 10]);
+      expect((await services.plans.detail(plan.id)).active?.reminderDays).toEqual([2, 10]);
     });
 
     it('a cycle too close for reminders gets one notice now instead (FR-041)', async () => {

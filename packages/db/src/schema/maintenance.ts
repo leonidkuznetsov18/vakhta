@@ -137,20 +137,31 @@ export const equipmentDocuments = pgTable(
     kind: equipmentDocumentKind('kind').notNull(),
     language: text('language'),
     edition: text('edition'),
-    /** Where the file was downloaded from; stored as text and never fetched by the server. */
+    /** Where the file was downloaded from, or the document itself when no file is stored. */
     sourceUrl: text('source_url'),
-    storageKey: text('storage_key').notNull().unique(),
-    contentType: text('content_type').notNull(),
-    sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
-    sha256: text('sha256').notNull(),
+    /** Null for a link-only document; a stored file fills all four columns. */
+    storageKey: text('storage_key').unique(),
+    contentType: text('content_type'),
+    sizeBytes: bigint('size_bytes', { mode: 'number' }),
+    sha256: text('sha256'),
     /** Cached after the first bot send so Telegram does not receive the file twice. */
     telegramFileId: text('telegram_file_id'),
     uploadedBy: text('uploaded_by').notNull(),
     createdAt: createdAt(),
   },
   (t) => [
-    check('equipment_documents_pdf', sql`${t.contentType} = 'application/pdf'`),
-    check('equipment_documents_size', sql`${t.sizeBytes} > 0 AND ${t.sizeBytes} <= 52428800`),
+    check(
+      'equipment_documents_pdf',
+      sql`${t.contentType} IS NULL OR ${t.contentType} = 'application/pdf'`,
+    ),
+    check(
+      'equipment_documents_size',
+      sql`${t.sizeBytes} IS NULL OR (${t.sizeBytes} > 0 AND ${t.sizeBytes} <= 52428800)`,
+    ),
+    check(
+      'equipment_documents_file_or_link',
+      sql`((${t.storageKey} IS NULL) = (${t.contentType} IS NULL)) AND ((${t.storageKey} IS NULL) = (${t.sizeBytes} IS NULL)) AND ((${t.storageKey} IS NULL) = (${t.sha256} IS NULL)) AND (${t.storageKey} IS NOT NULL OR ${t.sourceUrl} IS NOT NULL)`,
+    ),
     check('equipment_documents_url', sql`${t.sourceUrl} IS NULL OR ${t.sourceUrl} ~ '^https?://'`),
     check('equipment_documents_title', sql`btrim(${t.title}) <> ''`),
   ],
@@ -195,6 +206,8 @@ export const maintenancePlans = pgTable(
     /** Version that generates work; null only before the first publication. */
     activeVersionId: uuid('active_version_id'),
     firstDueOn: date('first_due_on'),
+    /** Reminder days of this plan; null follows the client parameters (7, 3 and 1 by default). */
+    reminderDays: smallint('reminder_days').array(),
     stateReason: text('state_reason'),
     version: integer('version').notNull().default(1),
     createdBy: text('created_by').notNull(),
@@ -203,6 +216,7 @@ export const maintenancePlans = pgTable(
   },
   (t) => [
     index('maintenance_plans_equipment_idx').on(t.equipmentId),
+    check('maintenance_plans_reminder_days', sql`cardinality(${t.reminderDays}) <= 5`),
     check(
       'maintenance_plans_active_version',
       sql`${t.state} = 'DRAFT' OR ${t.activeVersionId} IS NOT NULL`,

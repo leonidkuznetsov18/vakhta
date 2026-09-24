@@ -46,6 +46,8 @@ export interface PlanDraft {
   readonly estimatedMinutes: string;
   readonly requiresStop: boolean;
   readonly assigneeEmployeeId: string;
+  /** Reminder days as typed, "7, 3, 1"; empty follows the client parameters. */
+  readonly reminderDays: string;
   readonly operations: readonly OperationDraft[];
   readonly materials: readonly MaterialDraft[];
 }
@@ -89,9 +91,24 @@ export function emptyPlan(machine: EquipmentDetail): PlanDraft {
     estimatedMinutes: String(DEFAULT_MINUTES),
     requiresStop: true,
     assigneeEmployeeId: machine.responsible.id,
+    reminderDays: '',
     operations: [newOperation()],
     materials: [],
   };
+}
+
+/**
+ * "7, 3, 1" → [7, 3, 1]; blank → null (the client parameters apply). Anything that is not a whole
+ * number stays in the list as NaN so the contract refuses it and the field shows its error.
+ */
+export function parseReminderDays(text: string): readonly number[] | null {
+  const parts = text
+    .split(/[,;\s]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!parts.length) return null;
+  const days = parts.map((part) => (/^\d+$/.test(part) ? Number(part) : Number.NaN));
+  return [...new Set(days)];
 }
 
 export function draftFromContent(content: PlanContent): PlanDraft {
@@ -108,6 +125,7 @@ export function draftFromContent(content: PlanContent): PlanDraft {
     estimatedMinutes: String(content.estimatedMinutes),
     requiresStop: content.requiresStop,
     assigneeEmployeeId: content.assigneeEmployeeId ?? '',
+    reminderDays: (content.reminderDays ?? []).join(', '),
     operations: content.operations.map((operation) => ({
       key: newKey(),
       text: operation.text,
@@ -146,6 +164,7 @@ function candidate(draft: PlanDraft) {
     estimatedMinutes: Number(draft.estimatedMinutes),
     requiresStop: draft.requiresStop,
     assigneeEmployeeId: draft.assigneeEmployeeId || null,
+    reminderDays: parseReminderDays(draft.reminderDays),
     // Empty rows are what "add" leaves behind; they are not operations yet.
     operations: draft.operations
       .filter((operation) => operation.text.trim())
@@ -221,6 +240,16 @@ export interface SchedulePreview {
   readonly interval: { readonly intervalUnit: Unit; readonly intervalCount: number };
 }
 
+/** The plan's own reminder days when they are valid, else the client's. */
+export function effectiveReminderDays(
+  draft: PlanDraft,
+  policyOffsets: readonly number[],
+): readonly number[] {
+  const own = parseReminderDays(draft.reminderDays);
+  if (own === null || own.some((day) => !Number.isInteger(day) || day < 1)) return policyOffsets;
+  return own;
+}
+
 /** The first date, its reminder days and the date after it, as the scheduler will compute them. */
 export function schedulePreview(
   draft: PlanDraft,
@@ -228,7 +257,7 @@ export function schedulePreview(
 ): SchedulePreview | null {
   const count = Number(draft.intervalCount);
   if (!draft.firstDueOn || !Number.isInteger(count) || count < 1) return null;
-  const earliestFirst = [...reminderOffsets].sort((a, b) => b - a);
+  const earliestFirst = [...effectiveReminderDays(draft, reminderOffsets)].sort((a, b) => b - a);
   return {
     firstDueOn: draft.firstDueOn,
     reminders: earliestFirst.map((offset) => addDays(draft.firstDueOn, -offset)),

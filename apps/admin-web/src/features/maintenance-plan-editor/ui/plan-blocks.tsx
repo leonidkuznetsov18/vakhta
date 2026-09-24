@@ -32,6 +32,7 @@ import { Toggle } from '@/components/ui/toggle';
 import { currentLocale } from '@/shared/config';
 import { cn } from 'cn';
 import {
+  effectiveReminderDays,
   move,
   newMaterial,
   removeRow,
@@ -392,10 +393,7 @@ export function OperationsBlock({ draft, patch, invalid, readOnly }: BlockProps)
 }
 
 /** Columns of the materials table (prototype block 4); one header row, then a row per item. */
-const MATERIAL_GRID =
-  'md:grid md:grid-cols-[8.5rem_minmax(0,1fr)_6.5rem_4.5rem_3.5rem_7.5rem_1.75rem] md:items-center md:gap-2';
-
-/** A cell of a material row: the label is visible on phones and read by screen readers on desktop. */
+/** A labelled cell of a material card; the label stays visible so a long list still reads. */
 function MaterialCell({
   label,
   className,
@@ -407,26 +405,9 @@ function MaterialCell({
 }) {
   return (
     <label className={cn('flex min-w-0 flex-col gap-1', className)}>
-      <span className="text-xs text-muted-foreground md:sr-only">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
       {children}
     </label>
-  );
-}
-
-function MaterialHeader() {
-  const t = maintenanceMessages().planForm;
-  return (
-    <div
-      aria-hidden="true"
-      className={cn('hidden px-2 text-xs font-medium text-muted-foreground', MATERIAL_GRID)}
-    >
-      <span>{t.materialKind}</span>
-      <span>{t.materialName}</span>
-      <span>{t.article}</span>
-      <span className="col-span-2">{t.quantity}</span>
-      <span>{t.mode}</span>
-      <span />
-    </div>
   );
 }
 
@@ -459,20 +440,19 @@ function CodeSelect<T extends string>({
   );
 }
 
-function MaterialRow({
+/** Kind, article, quantity, unit and need of one item, under its name. */
+function MaterialDetails({
   row,
   onChange,
-  onRemove,
   readOnly,
 }: {
   readonly row: MaterialDraft;
   readonly onChange: (row: MaterialDraft) => void;
-  readonly onRemove: () => void;
   readonly readOnly: boolean;
 }) {
   const t = maintenanceMessages();
   return (
-    <li className={cn('grid grid-cols-2 gap-2 rounded-md border p-2', MATERIAL_GRID)}>
+    <div className="grid grid-cols-2 gap-2 md:grid-cols-[9rem_minmax(0,1fr)_5.5rem_4.5rem_9rem]">
       <MaterialCell label={t.planForm.materialKind}>
         <CodeSelect
           value={row.kind}
@@ -480,13 +460,6 @@ function MaterialRow({
           labels={t.materialKind}
           disabled={readOnly}
           onChange={(kind) => onChange({ ...row, kind })}
-        />
-      </MaterialCell>
-      <MaterialCell label={t.planForm.materialName} className="col-span-2 md:col-span-1">
-        <Input
-          value={row.name}
-          disabled={readOnly}
-          onChange={(event) => onChange({ ...row, name: event.target.value })}
         />
       </MaterialCell>
       <MaterialCell label={t.planForm.article}>
@@ -513,7 +486,7 @@ function MaterialRow({
           onChange={(event) => onChange({ ...row, unit: event.target.value })}
         />
       </MaterialCell>
-      <MaterialCell label={t.planForm.mode}>
+      <MaterialCell label={t.planForm.mode} className="col-span-2 md:col-span-1">
         <CodeSelect
           value={row.mode}
           values={MATERIAL_MODES}
@@ -522,17 +495,51 @@ function MaterialRow({
           onChange={(mode) => onChange({ ...row, mode })}
         />
       </MaterialCell>
-      {readOnly ? null : (
-        <IconButton
-          icon={Trash2Icon}
-          label={t.planForm.remove}
-          tooltip={t.planForm.remove}
-          variant="ghost"
-          size="icon-sm"
-          className="col-span-2 justify-self-end md:col-span-1"
-          onClick={onRemove}
-        />
-      )}
+    </div>
+  );
+}
+
+/**
+ * One item to have on hand, as a card: the name gets the whole width and wraps, the numbers and
+ * codes sit under it, so long names and many rows stay readable (owner request 2026-09-25).
+ */
+function MaterialRow({
+  row,
+  onChange,
+  onRemove,
+  readOnly,
+}: {
+  readonly row: MaterialDraft;
+  readonly onChange: (row: MaterialDraft) => void;
+  readonly onRemove: () => void;
+  readonly readOnly: boolean;
+}) {
+  const t = maintenanceMessages();
+  return (
+    <li className="flex flex-col gap-3 rounded-lg border p-3">
+      <div className="flex items-start gap-2">
+        <MaterialCell label={t.planForm.materialName} className="flex-1">
+          <Textarea
+            rows={1}
+            className="min-h-9 resize-y"
+            value={row.name}
+            disabled={readOnly}
+            onChange={(event) => onChange({ ...row, name: event.target.value })}
+          />
+        </MaterialCell>
+        {readOnly ? null : (
+          <IconButton
+            icon={Trash2Icon}
+            label={t.planForm.remove}
+            tooltip={t.planForm.remove}
+            variant="ghost"
+            size="icon-sm"
+            className="mt-5 shrink-0"
+            onClick={onRemove}
+          />
+        )}
+      </div>
+      <MaterialDetails row={row} readOnly={readOnly} onChange={onChange} />
     </li>
   );
 }
@@ -542,7 +549,6 @@ export function MaterialsBlock({ draft, patch, readOnly }: BlockProps) {
   const rows = draft.materials;
   return (
     <FormBlock number={4} title={t.planForm.blockMaterials}>
-      {rows.length ? <MaterialHeader /> : null}
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <MaterialRow
@@ -568,11 +574,11 @@ export function MaterialsBlock({ draft, patch, readOnly }: BlockProps) {
   );
 }
 
-/** "за 7, 3 і 1 день о 09:00" from the tenant's reminder rule; the last number picks the word form. */
-function remindersText(policy: MaintenancePolicyView | undefined): string {
+/** "за 7, 3 і 1 день о 09:00" from a reminder rule; the last number picks the word form. */
+function remindersText(policy: MaintenancePolicyView | undefined, own?: readonly number[]): string {
   const t = maintenanceMessages().planForm;
   if (!policy) return '—';
-  const offsets = [...policy.reminderOffsets].sort((a, b) => b - a);
+  const offsets = [...(own ?? policy.reminderOffsets)].sort((a, b) => b - a);
   const last = offsets.at(-1);
   if (last === undefined) return t.remindersOff;
   const locale = currentLocale();
@@ -606,11 +612,28 @@ export function AssigneeBlock({
           onChange={(value) => patch({ assigneeEmployeeId: value })}
           options={mechanics.map((option) => ({ value: option.id, label: option.fullName }))}
         />
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">{t.planForm.reminders}</span>
-          <span className="flex h-9 items-center text-sm">{remindersText(policy)}</span>
-        </div>
+        <FormField
+          label={t.planForm.reminders}
+          hint={format(t.planForm.reminderDaysHint, { policy: remindersText(policy) })}
+          error={invalid.has('reminderDays') ? t.planForm.reminderDaysInvalid : null}
+        >
+          {(id) => (
+            <Input
+              id={id}
+              inputMode="numeric"
+              placeholder={policy ? [...policy.reminderOffsets].join(', ') : ''}
+              value={draft.reminderDays}
+              readOnly={readOnly}
+              onChange={(event) => patch({ reminderDays: event.target.value })}
+            />
+          )}
+        </FormField>
       </div>
+      {readOnly || !policy ? null : (
+        <p className="text-sm text-muted-foreground">
+          {remindersText(policy, effectiveReminderDays(draft, policy.reminderOffsets))}
+        </p>
+      )}
     </FormBlock>
   );
 }

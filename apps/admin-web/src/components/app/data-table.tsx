@@ -464,15 +464,34 @@ export function DataTable<T extends object>({
     onRowClick(row);
     document.getElementById(`${instanceId}-open-${rowKey(row)}`)?.focus({ preventScroll: true });
   };
-  const disclosure = (row: T, isOpen: boolean) =>
-    onRowClick && detailTrigger === 'icon' ? (
+  // A chevron only where the row folds open under itself; a row that opens a panel keeps the
+  // keyboard entry point without drawing an accordion arrow (owner rule, 2026-09-24).
+  const disclosure = (row: T, isOpen: boolean) => {
+    if (!onRowClick || detailTrigger !== 'icon') return null;
+    const id = `${instanceId}-open-${rowKey(row)}`;
+    const label = `${t.details}: ${labelFor(row)}`;
+    if (!expanded)
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          id={id}
+          aria-label={label}
+          className="sr-only focus-visible:not-sr-only focus-visible:absolute"
+          onClick={() => onRowClick(row)}
+        >
+          {t.details}
+        </Button>
+      );
+    return (
       <Button
         type="button"
         variant="ghost"
         size="icon-sm"
-        id={`${instanceId}-open-${rowKey(row)}`}
-        aria-label={`${t.details}: ${labelFor(row)}`}
-        aria-expanded={expanded ? isOpen : undefined}
+        id={id}
+        aria-label={label}
+        aria-expanded={isOpen}
         aria-controls={isOpen ? `${instanceId}-detail-${rowKey(row)}` : undefined}
         onClick={() => onRowClick(row)}
       >
@@ -481,7 +500,8 @@ export function DataTable<T extends object>({
           className={cn('size-4 transition-transform', isOpen && 'rotate-180')}
         />
       </Button>
-    ) : null;
+    );
+  };
   const toggleSort = (key: string) => {
     setSort((cur) =>
       cur?.key === key ? (cur.dir === 'asc' ? { key, dir: 'desc' } : null) : { key, dir: 'asc' },

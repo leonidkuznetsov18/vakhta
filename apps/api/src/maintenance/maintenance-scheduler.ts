@@ -88,7 +88,7 @@ export class MaintenanceScheduler {
   }
 
   /**
-   * Schedules the reminders (tenant offsets, 7/3/1 days by default) for the current planned date; a date already close gets one
+   * Schedules the reminders (the plan's own days, else the tenant offsets, 7/3/1 by default) for the current planned date; a date already close gets one
    * notice now instead of late reminders (FR-041). Keys carry the date, so a re-plan gets new ones.
    */
   async planRemindersWithin(
@@ -100,7 +100,7 @@ export class MaintenanceScheduler {
     if (!notice?.plannedOn) return;
     const plan = reminderPlan({
       plannedOn: notice.plannedOn,
-      offsets: this.options.reminderOffsets,
+      offsets: notice.reminderDays ?? this.options.reminderOffsets,
       localTime: this.options.reminderTime,
       timezone: notice.timezone,
       now,

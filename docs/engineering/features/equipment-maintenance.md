@@ -110,6 +110,38 @@ panel's work card in the bot (status, full operation list) instead of a one-step
 in the spec). Overdue work reads "Прострочено" without a day count, and the bot's planned date stays
 `DD.MM.YYYY` without a weekday.
 
+### Owner review in production (2026-09-24/25)
+
+The live test on the pilot tenant (module switched on in Control; three NEWTOP machines of "Цех
+Стаканов" with four plans each; responsible mechanic chosen by the owner) led to these changes:
+
+- Documents may be links: `equipment_documents` keeps `storage_key`, `content_type`, `size_bytes` and
+  `sha256` nullable (migration `0055_document_links`, check `equipment_documents_file_or_link`);
+  `POST equipment/:id/documents/link` records one; `EquipmentDocumentView.hasFile` tells the panel to
+  open `sourceUrl` in a new tab; `DocumentsService.manualFor` answers `ManualKind.LINK` and the bot
+  sends the address as text (only presigned links stay out of Telegram, C7). The owner refused a cut
+  PDF and a 48 MB catalogue is above the browser tool's limit, so the catalogue is referenced by link.
+- Reminder days per plan: `maintenance_plans.reminder_days` (null = tenant parameters, at most five,
+  1–90 days) in `PlanContent.reminderDays`; `loadWorkNotice` carries them and the scheduler prefers
+  them over `MAINTENANCE_OPTIONS`. The editor's block 5 takes "7, 3, 1" as text; the preview and the
+  summary use the plan's own days when they are valid.
+- `EquipmentDetail.materials` (`PlansService.materialsForEquipment`) feeds the card's "Материалы" tab:
+  every item of the published plans with kind, quantity, need and the plan's next date.
+- Sheet footers use `components/app/sheet-actions.tsx`: every action stays visible as an `IconButton`
+  with a tooltip (`card.actionHints`, `workCard.actionHints`), label shown on wide screens, icon only on
+  phones; the "⋯" menus are gone from the card and the work sheet.
+- `DataTable` draws the row chevron only for rows that expand under themselves; rows that open a panel
+  keep a screen-reader-only "Подробности" button for the keyboard (owner rule).
+- `focusFirstField` skips `[role="tab"]`: the sheet's auto-focus used to land on the first tab trigger
+  and Radix activated it, so every card opened on "Паспорт" instead of its default tab.
+- The plan editor replaces the machine card instead of stacking a second sheet on it (the double
+  overlay read as a flicker); closing the editor mounts the card again from the query cache.
+- Material rows of the plan editor are cards: the name is a wrapping textarea on its own line, the
+  codes and numbers sit under it with visible labels.
+- Found but not fixed here: no panel UI marks a position as `performs_maintenance` (spec A-1); the
+  pilot has no `MECHANIC` position and its adjusters are `MACHINE_ADJUSTER*`, so the flag was set by
+  SQL for `WORKSHOP_HEAD` to let the owner's mechanic be chosen. Tracked as a separate task.
+
 ## Verification
 
 2026-09-24, branch `claude/busy-mayer-6jmcpk`, local PostgreSQL 16, Redis 7.
@@ -135,6 +167,19 @@ in the spec). Overdue work reads "Прострочено" without a day count, a
   was available in this environment), the Control → Parameters page with the new group in a browser,
   and the deployed environment.
 
+2026-09-25, scratchpad clone of `origin/master` (the shared checkout held another session's unpushed
+work with a clashing migration number): `pnpm lint`, `pnpm format:check`, `tsc` for api, worker and
+admin-web pass; i18n 16, panel maintenance suites 36 (plan draft, equipment card, work, data table,
+page), API `src/maintenance` + `src/telegram/maintenance*` 36 on PostgreSQL (link documents, own
+reminder days), worker timers 7 pass. Production evidence of the live test: 12 work orders 1001–1012,
+nine `MAINTENANCE_ASSIGNED` notices delivered to the mechanic, 24 pending `MAINTENANCE_REMINDER` tasks
+at 06:00 UTC (09:00 Kyiv), skipped offsets already in the past (FR-041). Not verified: the bot flows
+with a mechanic's Telegram, the emergency flow, phone layouts of the new screens (the automation
+browser cannot resize) and the deployed migration `0055`, which the release will run.
+
 ## Remaining work
 
-- None from spec 014 known. Watch the pilot for materials lists over 30 rows (bot falls back to text).
+- Positions directory: a `performs_maintenance` switch in the panel (spec A-1).
+- Live bot and emergency QA with a mechanic's Telegram on the pilot; phone screenshots of the card's new
+  footer, the materials tab and the material cards.
+- Watch the pilot for materials lists over 30 rows (bot falls back to text).

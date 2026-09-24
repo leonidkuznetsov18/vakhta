@@ -16,6 +16,7 @@ import {
   type Database,
 } from '@vakhta/db';
 import type {
+  DocumentLinkInput,
   DocumentLinkView,
   DocumentUploadQuery,
   EquipmentDocumentView,
@@ -56,6 +57,18 @@ export type StoredDocument = { readonly title: string; readonly documentId: stri
   | { readonly telegramFileId: string; readonly bytes: null }
   | { readonly telegramFileId: null; readonly bytes: Uint8Array }
 );
+
+/** A manual kept as a public link; the bot sends the address instead of a file. */
+export interface LinkedDocument {
+  readonly title: string;
+  readonly documentId: string;
+  readonly url: string;
+}
+
+export type ManualToSend =
+  | { readonly kind: typeof ManualKind.FILE; readonly file: StoredDocument }
+  | { readonly kind: typeof ManualKind.LINK; readonly link: LinkedDocument };
+export const ManualKind = { FILE: 'FILE', LINK: 'LINK' } as const;
 
 /** Manuals attached to machines (spec 014, US2): private files, many machines per document. */
 @Injectable()
@@ -103,6 +116,7 @@ export class DocumentsService {
       edition: doc.edition,
       sourceUrl: doc.sourceUrl,
       sizeBytes: doc.sizeBytes,
+      hasFile: doc.storageKey !== null,
       uploadedBy,
       createdAt: doc.createdAt.toISOString(),
     };
@@ -191,6 +205,37 @@ export class DocumentsService {
     return { id };
   }
 
+  /** Records a document that stays on the web and links it to the machine; nothing is fetched. */
+  async addLink(
+    equipmentId: string,
+    input: DocumentLinkInput,
+    actor: Actor,
+  ): Promise<{ id: string }> {
+    const id = randomUUID();
+    await this.db.transaction(async (tx) => {
+      await tx.insert(equipmentDocuments).values({
+        id,
+        title: input.title,
+        kind: input.kind,
+        language: textOrNull(input.language),
+        edition: textOrNull(input.edition),
+        sourceUrl: input.sourceUrl,
+        uploadedBy: actor.id ?? 'system',
+      });
+      await tx
+        .insert(equipmentDocumentLinks)
+        .values({ equipmentId, documentId: id, linkedBy: actor.id ?? 'system' });
+      await this.audit.record(tx, {
+        actor,
+        action: 'equipment_document.add_link',
+        objectType: 'equipment_document',
+        objectId: id,
+        after: { equipmentId, title: input.title, kind: input.kind, sourceUrl: input.sourceUrl },
+      });
+    });
+    return { id };
+  }
+
   async attach(equipmentId: string, documentId: string, actor: Actor): Promise<{ id: string }> {
     await this.db.transaction(async (tx) => {
       const [doc] = await tx
@@ -247,24 +292,34 @@ export class DocumentsService {
     return rows.map((row) => row.equipmentId);
   }
 
+  /** A presigned address for a stored file; a link-only document answers with its own address. */
   async link(documentId: string, now: Date = new Date()): Promise<DocumentLinkView> {
     const [doc] = await this.db
-      .select({ storageKey: equipmentDocuments.storageKey })
+      .select({
+        storageKey: equipmentDocuments.storageKey,
+        sourceUrl: equipmentDocuments.sourceUrl,
+      })
       .from(equipmentDocuments)
       .where(eq(equipmentDocuments.id, documentId));
     if (!doc) throw new DomainError('DOCUMENT_NOT_FOUND', 404, 'Document not found');
+    const expiresAt = new Date(now.getTime() + LINK_TTL_SECONDS * 1000).toISOString();
+    if (doc.storageKey === null) {
+      if (!doc.sourceUrl) throw new DomainError('DOCUMENT_INVALID', 409, 'Document has no address');
+      return { url: doc.sourceUrl, expiresAt };
+    }
     const url = await this.requireStorage().presignGet(doc.storageKey, LINK_TTL_SECONDS);
-    return { url, expiresAt: new Date(now.getTime() + LINK_TTL_SECONDS * 1000).toISOString() };
+    return { url, expiresAt };
   }
 
   /** The manual to send in Telegram: the plan's source document first, then an operating manual. */
-  async manualFor(equipmentId: string, preferredId: string | null): Promise<StoredDocument | null> {
+  async manualFor(equipmentId: string, preferredId: string | null): Promise<ManualToSend | null> {
     const docs = await this.db
       .select({
         id: equipmentDocuments.id,
         title: equipmentDocuments.title,
         kind: equipmentDocuments.kind,
         storageKey: equipmentDocuments.storageKey,
+        sourceUrl: equipmentDocuments.sourceUrl,
         telegramFileId: equipmentDocuments.telegramFileId,
       })
       .from(equipmentDocumentLinks)
@@ -280,16 +335,19 @@ export class DocumentsService {
       docs.find((doc) => doc.kind === EquipmentDocumentKind.OPERATING_MANUAL) ??
       docs.at(0);
     if (!chosen) return null;
+    const base = { title: chosen.title, documentId: chosen.id };
+    if (chosen.storageKey === null) {
+      if (!chosen.sourceUrl) return null;
+      return { kind: ManualKind.LINK, link: { ...base, url: chosen.sourceUrl } };
+    }
     if (chosen.telegramFileId)
       return {
-        title: chosen.title,
-        bytes: null,
-        telegramFileId: chosen.telegramFileId,
-        documentId: chosen.id,
+        kind: ManualKind.FILE,
+        file: { ...base, bytes: null, telegramFileId: chosen.telegramFileId },
       };
     const bytes = await this.requireStorage().get?.(chosen.storageKey);
     if (!bytes) throw new DomainError('STORAGE_UNAVAILABLE', 503, 'Storage unavailable');
-    return { title: chosen.title, bytes, telegramFileId: null, documentId: chosen.id };
+    return { kind: ManualKind.FILE, file: { ...base, bytes, telegramFileId: null } };
   }
 
   /** Remembers Telegram's file id so the next send does not upload the file again. */

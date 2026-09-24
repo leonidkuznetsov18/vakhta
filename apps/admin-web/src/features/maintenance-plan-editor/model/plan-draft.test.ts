@@ -7,6 +7,8 @@ import {
   move,
   newOperation,
   publishIssues,
+  effectiveReminderDays,
+  parseReminderDays,
   schedulePreview,
   toContent,
 } from './plan-draft';
@@ -74,5 +76,30 @@ describe('maintenance plan draft', () => {
   it('moves a row within bounds', () => {
     expect(move(['a', 'b', 'c'], 0, 1)).toEqual(['b', 'a', 'c']);
     expect(move(['a', 'b'], 0, -1)).toEqual(['a', 'b']);
+  });
+
+  describe('reminder days of a plan', () => {
+    it('reads "7, 3, 1" as days, blank as the client rule and junk as an invalid entry', () => {
+      expect(parseReminderDays('7, 3, 1')).toEqual([7, 3, 1]);
+      expect(parseReminderDays('  ')).toBeNull();
+      expect(parseReminderDays('7;7 x')).toEqual([7, Number.NaN]);
+    });
+
+    it("previews the plan's own days and falls back to the client rule while they are invalid", () => {
+      const draft = {
+        ...emptyPlan(machine),
+        title: 'Sensors',
+        firstDueOn: '2026-09-30',
+        reminderDays: '2',
+      };
+      expect(effectiveReminderDays(draft, [7, 3, 1])).toEqual([2]);
+      expect(schedulePreview(draft, [7, 3, 1])?.reminders).toEqual(['2026-09-28']);
+      expect(effectiveReminderDays({ ...draft, reminderDays: 'soon' }, [7, 3, 1])).toEqual([
+        7, 3, 1,
+      ]);
+      const checked = toContent({ ...draft, reminderDays: 'soon' });
+      expect(checked.ok).toBe(false);
+      if (!checked.ok) expect([...checked.fields]).toEqual(['reminderDays']);
+    });
   });
 });

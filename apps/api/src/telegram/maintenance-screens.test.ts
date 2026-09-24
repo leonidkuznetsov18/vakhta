@@ -67,6 +67,7 @@ function card(overrides: {
     backupId: null,
     masterId: null,
     timezone: 'Europe/Kyiv',
+    reminderDays: null,
     plannedOn: '2026-10-15',
     dueOn: '2026-10-15',
     acceptedAt: overrides.acceptedAt ?? null,

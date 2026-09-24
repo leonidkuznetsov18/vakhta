@@ -1,6 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArchiveIcon, GaugeIcon, PencilIcon, SirenIcon, TimerIcon } from 'lucide-react';
+import {
+  ArchiveIcon,
+  CircleCheckIcon,
+  GaugeIcon,
+  PencilIcon,
+  SirenIcon,
+  TimerIcon,
+} from 'lucide-react';
 import type { EquipmentDetail } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import {
@@ -15,20 +22,18 @@ import {
   maintenanceQueries,
 } from '@/entities/maintenance';
 import { useConfirm } from '@/components/app/confirm-dialog';
-import { RowMenu } from '@/components/app/data-table';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { Feedback } from '@/components/app/feedback';
-import { InfoTip } from '@/components/app/info-tip';
 import { StatusPill } from '@/components/app/page';
 import { QueryFeedback } from '@/components/app/query-feedback';
-import { Button } from '@/components/ui/button';
+import { SheetActions, type SheetAction } from '@/components/app/sheet-actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { describeError } from '@/errors';
 import { useNow } from '@/lib/clock';
 import { formatDuration } from '@/lib/format';
 import { notifySuccess } from '@/lib/toast';
 import { CardDialog, ResponderActionKind, downtimeMinutes, responderAction } from '../model/card';
-import { DocumentsTab, HistoryTab, PlansTab } from './card-tabs';
+import { DocumentsTab, HistoryTab, MaterialsTab, PlansTab } from './card-tabs';
 import { EmergencyDialog } from './emergency-dialog';
 import { ReleaseDialog } from './release-dialog';
 import { StateDialog } from './state-dialog';
@@ -132,60 +137,51 @@ interface CardProps {
   readonly onOpenEquipment: (equipmentId: string) => void;
 }
 
-/** A disabled menu item cannot carry a tooltip, so the reason is written under its name. */
-function CorrectStateLabel({ locked }: { readonly locked: boolean }) {
-  const t = maintenanceMessages().card;
-  return (
-    <span className="flex flex-col">
-      {t.correctState}
-      {locked ? (
-        <span className="text-xs whitespace-normal text-muted-foreground">
-          {t.correctStateLocked}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
 /** Create an emergency for a running machine, or return a stopped one to service (FR-065). */
-function ResponderButton({
-  machine,
-  onDialog,
-}: {
-  readonly machine: EquipmentDetail;
-  readonly onDialog: (dialog: CardDialog) => void;
-}) {
+function responderActions(
+  machine: EquipmentDetail,
+  onDialog: (dialog: CardDialog) => void,
+): SheetAction[] {
   const t = maintenanceMessages();
   const action = responderAction(machine);
   if (action.kind === ResponderActionKind.CREATE_EMERGENCY)
-    return (
-      <Button variant="destructive" onClick={() => onDialog(CardDialog.EMERGENCY)}>
-        <SirenIcon /> {t.card.createEmergency}
-      </Button>
-    );
-  if (action.kind === ResponderActionKind.NONE) return null;
-  return (
-    <span className="flex items-center gap-1">
-      <Button
-        variant="success"
-        disabled={!action.ready}
-        onClick={() => onDialog(CardDialog.RELEASE)}
-      >
-        {t.card.release}
-      </Button>
-      {action.ready ? null : <InfoTip text={t.workCard.releaseHint} />}
-    </span>
-  );
+    return [
+      {
+        key: 'emergency',
+        label: t.card.createEmergency,
+        tooltip: t.card.actionHints.createEmergency,
+        icon: SirenIcon,
+        variant: 'destructive',
+        onSelect: () => onDialog(CardDialog.EMERGENCY),
+      },
+    ];
+  if (action.kind === ResponderActionKind.NONE) return [];
+  return [
+    {
+      key: 'release',
+      label: t.card.release,
+      tooltip: t.card.actionHints.release,
+      disabledHint: t.workCard.releaseHint,
+      icon: CircleCheckIcon,
+      variant: 'success',
+      disabled: !action.ready,
+      onSelect: () => onDialog(CardDialog.RELEASE),
+    },
+  ];
 }
 
-/** Editing stays in view; the rare state correction and archiving wait in the "⋯" menu. */
-function ManageActions({
+/** Every action of the card in one row: response first, then state, archive and editing. */
+function CardFooter({
   machine,
+  canManage,
+  canRespond,
   onEdit,
   onDialog,
   onArchived,
 }: {
   readonly machine: EquipmentDetail;
+  readonly canManage: boolean;
+  readonly canRespond: boolean;
   readonly onEdit: () => void;
   readonly onDialog: (dialog: CardDialog) => void;
   readonly onArchived: () => void;
@@ -214,64 +210,41 @@ function ManageActions({
   };
   // A repair in progress owns the state until the machine is released (FR-005).
   const locked = machine.openStop !== null;
+  const manage: SheetAction[] = canManage
+    ? [
+        {
+          key: 'state',
+          label: t.card.correctState,
+          tooltip: t.card.actionHints.correctState,
+          disabledHint: t.card.correctStateLocked,
+          icon: GaugeIcon,
+          disabled: locked,
+          onSelect: () => onDialog(CardDialog.STATE),
+        },
+        {
+          key: 'archive',
+          label: t.card.archive,
+          tooltip: t.card.actionHints.archive,
+          icon: ArchiveIcon,
+          variant: 'destructive',
+          pending: archive.isPending,
+          onSelect: () => void askArchive(),
+        },
+        {
+          key: 'edit',
+          label: t.card.edit,
+          tooltip: t.card.actionHints.edit,
+          icon: PencilIcon,
+          onSelect: onEdit,
+        },
+      ]
+    : [];
+  const respond = canRespond ? responderActions(machine, onDialog) : [];
   return (
-    <>
+    <div className="flex w-full flex-wrap items-center justify-end gap-2">
       <Feedback error={archive.error ? describeError(archive.error) : null} />
-      <RowMenu
-        label={t.moreActions}
-        actions={[
-          {
-            key: 'state',
-            label: <CorrectStateLabel locked={locked} />,
-            icon: GaugeIcon,
-            disabled: locked,
-            onSelect: () => onDialog(CardDialog.STATE),
-          },
-          {
-            key: 'archive',
-            label: t.card.archive,
-            icon: ArchiveIcon,
-            destructive: true,
-            separator: true,
-            pending: archive.isPending,
-            onSelect: () => void askArchive(),
-          },
-        ]}
-      />
-      <Button variant="outline" onClick={onEdit}>
-        <PencilIcon /> {t.card.edit}
-      </Button>
+      <SheetActions actions={[...respond, ...manage]} />
       {dialog}
-    </>
-  );
-}
-
-function CardFooter({
-  machine,
-  canManage,
-  canRespond,
-  onEdit,
-  onDialog,
-  onArchived,
-}: {
-  readonly machine: EquipmentDetail;
-  readonly canManage: boolean;
-  readonly canRespond: boolean;
-  readonly onEdit: () => void;
-  readonly onDialog: (dialog: CardDialog) => void;
-  readonly onArchived: () => void;
-}) {
-  return (
-    <div className="flex flex-wrap justify-end gap-2">
-      {canRespond ? <ResponderButton machine={machine} onDialog={onDialog} /> : null}
-      {canManage ? (
-        <ManageActions
-          machine={machine}
-          onEdit={onEdit}
-          onDialog={onDialog}
-          onArchived={onArchived}
-        />
-      ) : null}
     </div>
   );
 }
@@ -317,6 +290,7 @@ function CardBody({
           <TabsTrigger value="passport">{t.card.tabs.passport}</TabsTrigger>
           <TabsTrigger value="documents">{t.card.tabs.documents}</TabsTrigger>
           <TabsTrigger value="plans">{t.card.tabs.plans}</TabsTrigger>
+          <TabsTrigger value="materials">{t.card.tabs.materials}</TabsTrigger>
           <TabsTrigger value="history">{t.card.tabs.history}</TabsTrigger>
         </TabsList>
         <TabsContent value="passport" className="mt-3">
@@ -332,6 +306,9 @@ function CardBody({
             onOpenPlan={(planId) => onOpenPlan({ equipment: machine, planId })}
             onOpenEquipment={onOpenEquipment}
           />
+        </TabsContent>
+        <TabsContent value="materials" className="mt-3">
+          <MaterialsTab machine={machine} />
         </TabsContent>
         <TabsContent value="history" className="mt-3">
           <HistoryTab history={machine.history} />

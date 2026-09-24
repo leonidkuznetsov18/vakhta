@@ -4,13 +4,14 @@ import {
   CopyIcon,
   ExternalLinkIcon,
   FileTextIcon,
+  LinkIcon,
   PlusIcon,
   TriangleAlertIcon,
-  UploadIcon,
 } from 'lucide-react';
 import type {
   EquipmentDetail,
   EquipmentDocumentView,
+  EquipmentMaterialView,
   PlanRow,
   WorkHistoryItem,
 } from '@vakhta/contracts';
@@ -37,14 +38,21 @@ import { formatSize, lacksManual } from '../model/documents';
 import { CopyPlanDialog } from './copy-plan-dialog';
 import { UploadDialog } from './upload-dialog';
 
-/** Opens a signed link in a new tab; the tab opens first so the browser does not block it. */
+/**
+ * Opens a document in a new tab. A link document goes straight to its address; a stored file
+ * needs a signed link first, so its tab opens before the request and the browser does not block it.
+ */
 function useOpenDocument() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (documentId: string) => {
+    mutationFn: async (doc: EquipmentDocumentView) => {
+      if (!doc.hasFile && doc.sourceUrl) {
+        window.open(doc.sourceUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
       const tab = window.open('', '_blank');
       try {
-        const link = await client.fetchQuery(maintenanceQueries.documentLink(documentId));
+        const link = await client.fetchQuery(maintenanceQueries.documentLink(doc.id));
         if (tab) {
           tab.opener = null;
           tab.location.href = link.url;
@@ -55,6 +63,18 @@ function useOpenDocument() {
       }
     },
   });
+}
+
+function documentMeta(doc: EquipmentDocumentView): string {
+  const t = maintenanceMessages();
+  const shared = {
+    kind: t.documentKind[doc.kind],
+    author: doc.uploadedBy,
+    date: formatDate(doc.linkedAt),
+  };
+  return doc.sizeBytes === null
+    ? format(t.documents.metaLink, shared)
+    : format(t.documents.meta, { ...shared, size: formatSize(doc.sizeBytes) });
 }
 
 function DocumentItem({
@@ -71,16 +91,12 @@ function DocumentItem({
   readonly busy: boolean;
 }) {
   const t = maintenanceMessages();
-  const meta = format(t.documents.meta, {
-    kind: t.documentKind[doc.kind],
-    size: formatSize(doc.sizeBytes),
-    author: doc.uploadedBy,
-    date: formatDate(doc.linkedAt),
-  });
+  const meta = documentMeta(doc);
+  const Icon = doc.hasFile ? FileTextIcon : LinkIcon;
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
       <span className="flex min-w-0 items-start gap-3">
-        <FileTextIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="flex min-w-0 flex-col leading-tight">
           <span className="font-medium break-words">{doc.title}</span>
           <span className="text-xs text-muted-foreground">
@@ -131,7 +147,7 @@ export function DocumentsTab({
               key={doc.id}
               doc={doc}
               canManage={canManage}
-              onOpen={() => open.mutate(doc.id)}
+              onOpen={() => open.mutate(doc)}
               onUnlink={() => unlink.mutate(doc.id)}
               busy={unlink.isPending && unlink.variables === doc.id}
             />
@@ -149,12 +165,85 @@ export function DocumentsTab({
       ) : null}
       {canManage ? (
         <Button variant="outline" className="self-start" onClick={() => setUploading(true)}>
-          <UploadIcon /> {t.documents.upload}
+          <PlusIcon /> {t.documents.add}
         </Button>
       ) : null}
       {uploading ? (
         <UploadDialog equipmentId={machine.id} onClose={() => setUploading(false)} />
       ) : null}
+    </div>
+  );
+}
+
+const MATERIAL_COLUMNS: readonly Column<EquipmentMaterialView>[] = [
+  {
+    key: 'item',
+    header: maintenanceMessages().card.materialsTab.columns.item,
+    minWidth: '12rem',
+    sortValue: (row) => row.name,
+    cell: (row) => (
+      <span className="flex flex-col leading-tight">
+        <span className="font-medium">{row.name}</span>
+        {row.article ? <span className="text-xs text-muted-foreground">{row.article}</span> : null}
+      </span>
+    ),
+  },
+  {
+    key: 'kind',
+    header: maintenanceMessages().card.materialsTab.columns.kind,
+    minWidth: '6rem',
+    sortValue: (row) => row.kind,
+    cell: (row) => maintenanceMessages().materialKind[row.kind],
+  },
+  {
+    key: 'quantity',
+    header: maintenanceMessages().card.materialsTab.columns.quantity,
+    minWidth: '6rem',
+    align: 'right',
+    cell: (row) => (
+      <span className="tabular-nums whitespace-nowrap">
+        {row.quantity} {row.unit}
+      </span>
+    ),
+  },
+  {
+    key: 'mode',
+    header: maintenanceMessages().card.materialsTab.columns.mode,
+    minWidth: '7rem',
+    cell: (row) => maintenanceMessages().materialMode[row.mode],
+  },
+  {
+    key: 'plan',
+    header: maintenanceMessages().card.materialsTab.columns.plan,
+    minWidth: '10rem',
+    sortValue: (row) => row.nextDueOn ?? '9999',
+    cell: (row) => (
+      <span className="flex flex-col leading-tight">
+        <span>{row.planTitle}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {formatNearDate(row.nextDueOn)}
+          {row.planState === PlanState.ACTIVE
+            ? ''
+            : ` · ${maintenanceMessages().planState[row.planState]}`}
+        </span>
+      </span>
+    ),
+  },
+];
+
+/** What the published plans need, so the stock question is answered from one list. */
+export function MaterialsTab({ machine }: { readonly machine: EquipmentDetail }) {
+  const t = maintenanceMessages();
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">{t.card.materialsTab.hint}</p>
+      <DataTable
+        columns={MATERIAL_COLUMNS}
+        rows={machine.materials}
+        rowKey={(row) => `${row.planId}:${row.name}:${row.article ?? ''}`}
+        empty={t.card.materialsTab.empty}
+        primaryKey="item"
+      />
     </div>
   );
 }
