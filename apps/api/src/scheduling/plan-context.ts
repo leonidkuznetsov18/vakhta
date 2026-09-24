@@ -22,11 +22,12 @@ import {
   employees,
   wellbeingCheckins,
 } from '@vakhta/db';
-import type {
-  AbsenceEventView,
-  AssignmentPresenceView,
-  OperationalRequestView,
-  ReplacementNeedView,
+import {
+  PresenceState,
+  type AbsenceEventView,
+  type AssignmentPresenceView,
+  type OperationalRequestView,
+  type ReplacementNeedView,
 } from '@vakhta/contracts';
 import { routeFor, TERMINAL_STATES } from '@vakhta/domain';
 import {
@@ -270,47 +271,48 @@ export async function loadPresence(
       ),
     );
   if (rows.length === 0) return [];
-  const ids = rows.map((row) => row.id);
-  const presence = await tx
-    .select({
-      assignmentId: presenceSessions.assignmentId,
-      arrivedAt: presenceSessions.arrivedAt,
-      departedAt: presenceSessions.departedAt,
-    })
-    .from(presenceSessions)
-    .where(inArray(presenceSessions.assignmentId, ids))
-    .orderBy(desc(presenceSessions.arrivedAt));
-  const sessions = await tx
-    .select({
-      id: shiftSessions.id,
-      assignmentId: shiftSessions.assignmentId,
-      state: shiftSessions.state,
-      startedAt: shiftSessions.startedAt,
-      endedAt: shiftSessions.endedAt,
-    })
-    .from(shiftSessions)
-    .where(inArray(shiftSessions.assignmentId, ids))
-    .orderBy(desc(shiftSessions.createdAt));
-  const terminal = new Set<string>(TERMINAL_STATES);
+  const slots = {
+    orgUnitId: input.orgUnitId,
+    employeeIds: [...new Set(rows.map((row) => row.employeeId))],
+    from: input.from,
+    to: input.to,
+  };
+  const arrivals = latestBySlot(
+    await tx
+      .select({
+        employeeId: shiftAssignments.employeeId,
+        businessDate: shiftAssignments.businessDate,
+        arrivedAt: presenceSessions.arrivedAt,
+      })
+      .from(presenceSessions)
+      .innerJoin(shiftAssignments, eq(shiftAssignments.id, presenceSessions.assignmentId))
+      .where(sameSlotAssignments(slots))
+      .orderBy(desc(presenceSessions.arrivedAt)),
+  );
+  const sessions = latestBySlot(
+    await tx
+      .select({
+        employeeId: shiftAssignments.employeeId,
+        businessDate: shiftAssignments.businessDate,
+        id: shiftSessions.id,
+        state: shiftSessions.state,
+        startedAt: shiftSessions.startedAt,
+        endedAt: shiftSessions.endedAt,
+      })
+      .from(shiftSessions)
+      .innerJoin(shiftAssignments, eq(shiftAssignments.id, shiftSessions.assignmentId))
+      .where(sameSlotAssignments(slots))
+      .orderBy(desc(shiftSessions.createdAt)),
+  );
   return rows.map((row) => {
-    const arrival = presence.find((item) => item.assignmentId === row.id);
-    const session = sessions.find((item) => item.assignmentId === row.id);
-    const state: AssignmentPresenceView['state'] = session?.startedAt
-      ? terminal.has(session.state) || session.endedAt
-        ? 'CLOSED'
-        : 'STARTED'
-      : arrival
-        ? 'ARRIVED'
-        : row.planStartAt.getTime() <= now.getTime()
-          ? 'NO_EVIDENCE'
-          : row.acknowledgedAt
-            ? 'ACKNOWLEDGED'
-            : 'SCHEDULED';
+    const key = planSlotKey(row);
+    const arrival = arrivals.get(key);
+    const session = sessions.get(key);
     return {
       assignmentId: row.id,
       employeeId: row.employeeId,
       businessDate: row.businessDate,
-      state,
+      state: presenceState(row, arrival, session, now),
       acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
       arrivedAt: arrival?.arrivedAt.toISOString() ?? null,
       startedAt: session?.startedAt?.toISOString() ?? null,
@@ -319,6 +321,65 @@ export async function loadPresence(
       sessionId: session?.id ?? null,
     };
   });
+}
+
+/**
+ * A plan slot is one employee on one business date in one unit: each version holds at most one
+ * assignment for it. Republishing gives the slot a new assignment id, while shifts and arrivals
+ * keep the id of the version current when they were recorded, so evidence is matched by slot.
+ */
+interface PlanSlot {
+  readonly employeeId: string;
+  readonly businessDate: string;
+}
+
+export function planSlotKey(slot: PlanSlot): string {
+  return `${slot.employeeId}|${slot.businessDate}`;
+}
+
+/** Assignments of any version (published, superseded) for the unit's slots in the range. */
+export function sameSlotAssignments(input: {
+  readonly orgUnitId: string;
+  readonly employeeIds: readonly string[];
+  readonly from: string;
+  readonly to: string;
+}) {
+  return and(
+    eq(shiftAssignments.orgUnitId, input.orgUnitId),
+    inArray(shiftAssignments.employeeId, [...input.employeeIds]),
+    gte(shiftAssignments.businessDate, input.from),
+    lte(shiftAssignments.businessDate, input.to),
+  );
+}
+
+/** Rows must arrive newest first; the first row per slot wins. */
+export function latestBySlot<T extends PlanSlot>(rows: readonly T[]): Map<string, T> {
+  const bySlot = new Map<string, T>();
+  for (const row of rows) {
+    const key = planSlotKey(row);
+    if (!bySlot.has(key)) bySlot.set(key, row);
+  }
+  return bySlot;
+}
+
+const TERMINAL = new Set<string>(TERMINAL_STATES);
+
+function presenceState(
+  plan: { readonly planStartAt: Date; readonly acknowledgedAt: Date | null },
+  arrival: { readonly arrivedAt: Date } | undefined,
+  session:
+    | { readonly state: string; readonly startedAt: Date | null; readonly endedAt: Date | null }
+    | undefined,
+  now: Date,
+): PresenceState {
+  if (session?.startedAt) {
+    const closed = TERMINAL.has(session.state) || session.endedAt !== null;
+    return closed ? PresenceState.enum.CLOSED : PresenceState.enum.STARTED;
+  }
+  if (arrival) return PresenceState.enum.ARRIVED;
+  if (plan.planStartAt.getTime() <= now.getTime()) return PresenceState.enum.NO_EVIDENCE;
+  if (plan.acknowledgedAt) return PresenceState.enum.ACKNOWLEDGED;
+  return PresenceState.enum.SCHEDULED;
 }
 
 /**

@@ -2306,6 +2306,74 @@ describe('scheduling: версії, валідація, публікація, о
         ),
       ).resolves.toBeUndefined();
     });
+
+    it('keeps recorded shifts on the plan after the version is republished', async () => {
+      const staffing = new StaffingService(testDb.db, new AuditLog());
+      const items = [day(1), day(2)].map((businessDate) => ({
+        employeeId: ivanov,
+        templateId: dayId,
+        businessDate,
+        zoneId,
+        kind: 'REGULAR' as const,
+      }));
+      const v1 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      await schedule.putAssignments(v1.id, { items }, PLANNER);
+      await schedule.submit(v1.id, PLANNER);
+      await schedule.publish(v1.id, {}, HEAD);
+      const firstDay = async (versionId: string) => {
+        const found = (await schedule.detail(versionId)).assignments.find(
+          (a) => a.businessDate === day(1),
+        );
+        if (!found) throw new Error('the first day is planned');
+        return found;
+      };
+      const worked = await firstDay(v1.id);
+      const [session] = await testDb.db
+        .insert(shiftSessions)
+        .values({
+          employeeId: ivanov,
+          assignmentId: worked.id,
+          businessDate: day(1),
+          state: 'SHIFT_CLOSED',
+          startedAt: new Date(worked.planStartAt),
+          endedAt: new Date(worked.planEndAt),
+          planStartAt: new Date(worked.planStartAt),
+          planEndAt: new Date(worked.planEndAt),
+        })
+        .returning();
+      if (!session) throw new Error('the shift session is recorded');
+
+      // Republishing gives every slot a new assignment id; the shift keeps the old one.
+      const v2 = await schedule.revise(v1.id, { items }, HEAD);
+      const current = await firstDay(v2.id);
+      expect(current.id).not.toBe(worked.id);
+
+      const range = { siteId, orgUnitId: unitId, from: day(1), to: day(2) };
+      const view = await staffing.operations(range, new Date('2099-01-01T00:00:00Z'));
+      const byDate = new Map(view.presence.map((p) => [p.businessDate, p]));
+      expect(byDate.get(day(1))).toMatchObject({
+        assignmentId: current.id,
+        state: 'CLOSED',
+        sessionId: session.id,
+      });
+      expect(byDate.get(day(2))?.state).toBe('NO_EVIDENCE');
+
+      const retrospective = await new RetrospectiveService(testDb.db).view({
+        siteId,
+        orgUnitId: unitId,
+        periodMonth: MONTH,
+      });
+      expect(retrospective.version?.id).toBe(v2.id);
+      expect(
+        retrospective.rows.map((row) => [row.businessDate, row.sessionId, row.departure]),
+      ).toEqual([
+        [day(1), session.id, 'RECORDED'],
+        [day(2), null, 'NONE'],
+      ]);
+    });
   });
 
   describe('notes and retrospective output (#18, SC-39/41/43)', () => {

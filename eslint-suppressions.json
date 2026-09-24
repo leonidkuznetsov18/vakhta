@@ -2816,11 +2816,8 @@
     "max-lines-per-function": {
       "count": 1
     },
-    "no-nested-ternary": {
-      "count": 3
-    },
     "no-restricted-syntax": {
-      "count": 11
+      "count": 10
     }
   },
   "apps/api/src/scheduling/retrospective.service.ts": {
@@ -2834,7 +2831,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 4
+      "count": 3
     }
   },
   "apps/api/src/scheduling/schedule-command.service.ts": {

@@ -1318,3 +1318,21 @@ Verification and limits: [cleanup delivery](../../audits/2026-09-13/code-simplif
   TypeScript and changed-file ESLint passed. Captured and visually inspected local synthetic previews:
   desktop month matrix at 1440x900, zone cards, mobile cards/details at 390x844. Gray status text,
   retained details and the removal action are readable; no production assignments were changed.
+
+### Fix: recorded shifts lost after republishing — 2026-09-24
+
+- RECON: production showed "no evidence" on 21 and 23 September for workers whose shifts were
+  started and closed. Every publication inserts new `shift_assignments` rows, while shift and
+  presence sessions keep the assignment id of the version current when they were recorded. The
+  unit was republished on 22–23 September, so `loadPresence` (calendar evidence) and the
+  retrospective report looked up sessions by current ids only and found nothing.
+- DESIGN: evidence is matched by plan slot — employee, business date and unit — through the
+  session's own assignment in any version. `shift_assignments_version_employee_date_uq` keeps one
+  assignment per slot and version; the assignment's unit equals its version's unit. Sessions without
+  an assignment stay out of the plan view, as before. Lookups use one query and a `Map` per kind.
+  A revision that changes a slot's shift keeps the recorded evidence on that slot: it is a fact of
+  that date. Remaining risk: the lookup is bounded only by the employee index; add an
+  `(employee_id, business_date)` index if assignment history grows large.
+- VERIFY: a regression test republishes a version after a closed shift and asserts `CLOSED` in the
+  calendar and `RECORDED` in the retrospective; it failed on the previous code. Existing presence
+  and retrospective cases, API typecheck and changed-file ESLint pass. Production was only read.

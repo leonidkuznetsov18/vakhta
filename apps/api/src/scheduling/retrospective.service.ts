@@ -20,6 +20,7 @@ import { DEFAULT_LOCALE, hasAnyRole, type Locale } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import type { WebUser } from '../auth/web-auth.guard.js';
 import { DATABASE } from '../infra/database.module.js';
+import { latestBySlot, planSlotKey, sameSlotAssignments } from './plan-context.js';
 import { EMPLOYEE_NAME_READERS, worksheet } from './schedule-export.service.js';
 
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -69,26 +70,9 @@ export class RetrospectiveService {
         ),
       )
       .orderBy(asc(shiftAssignments.businessDate), asc(shiftAssignments.employeeId));
-    const ids = planned.map((row) => row.id);
-    const sessions =
-      ids.length > 0
-        ? await this.db
-            .select({
-              id: shiftSessions.id,
-              assignmentId: shiftSessions.assignmentId,
-              startedAt: shiftSessions.startedAt,
-              endedAt: shiftSessions.endedAt,
-              autoCloseReason: shiftSessions.autoCloseReason,
-              workMinutes: shiftSummaries.workMinutes,
-              totalMinutes: shiftSummaries.totalMinutes,
-            })
-            .from(shiftSessions)
-            .leftJoin(shiftSummaries, eq(shiftSummaries.shiftSessionId, shiftSessions.id))
-            .where(inArray(shiftSessions.assignmentId, ids))
-            .orderBy(desc(shiftSessions.createdAt))
-        : [];
+    const sessions = await this.recordedSessions(version.orgUnitId, planned);
     const rows: RetrospectiveRow[] = planned.map((a) => {
-      const session = sessions.find((item) => item.assignmentId === a.id);
+      const session = sessions.get(planSlotKey(a));
       const departure: RetrospectiveRow['departure'] = !session
         ? 'NONE'
         : session.endedAt && !session.autoCloseReason
@@ -142,6 +126,40 @@ export class RetrospectiveService {
       rows,
       totals: [...totals.values()],
     };
+  }
+
+  /** The latest recorded shift of each planned slot, whichever version it was recorded under. */
+  private async recordedSessions(
+    orgUnitId: string,
+    planned: readonly (typeof shiftAssignments.$inferSelect)[],
+  ) {
+    const first = planned[0];
+    const last = planned.at(-1);
+    if (!first || !last) return new Map<string, never>();
+    const rows = await this.db
+      .select({
+        employeeId: shiftAssignments.employeeId,
+        businessDate: shiftAssignments.businessDate,
+        id: shiftSessions.id,
+        startedAt: shiftSessions.startedAt,
+        endedAt: shiftSessions.endedAt,
+        autoCloseReason: shiftSessions.autoCloseReason,
+        workMinutes: shiftSummaries.workMinutes,
+        totalMinutes: shiftSummaries.totalMinutes,
+      })
+      .from(shiftSessions)
+      .innerJoin(shiftAssignments, eq(shiftAssignments.id, shiftSessions.assignmentId))
+      .leftJoin(shiftSummaries, eq(shiftSummaries.shiftSessionId, shiftSessions.id))
+      .where(
+        sameSlotAssignments({
+          orgUnitId,
+          employeeIds: [...new Set(planned.map((row) => row.employeeId))],
+          from: first.businessDate,
+          to: last.businessDate,
+        }),
+      )
+      .orderBy(desc(shiftSessions.createdAt));
+    return latestBySlot(rows);
   }
 
   /** Formula-safe XLSX with the scope, timezone, version identity and creation time stated. */
