@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TimerTask, timerTaskKey } from '@vakhta/contracts';
+import { MaintenanceTimerKind, TimerTask, timerTaskKey } from '@vakhta/contracts';
 import {
   BackgroundTaskLeaseLostError,
   claimBackgroundTasks,
@@ -18,6 +18,11 @@ import { handleCleaningReminderWithin, handleHandoverTimeoutWithin } from './han
 import { handleDowntimeEscalationWithin, handleReturnReminderWithin } from './shift-timers.js';
 import { handleIncidentSlaWithin } from './incident-sla.js';
 import {
+  handleEmergencyAckWithin,
+  handleEmergencyEscalationWithin,
+  handleMaintenanceReminderWithin,
+} from './maintenance.js';
+import {
   handleAbsenceCheckinWithin,
   handleAbsenceReturnWithin,
   handleBirthdayGreetingWithin,
@@ -34,6 +39,9 @@ export const TIMER_TASK_KINDS = [
   'BIRTHDAY_GREETING',
   'ABSENCE_CHECKIN',
   'ABSENCE_RETURN',
+  MaintenanceTimerKind.MAINTENANCE_REMINDER,
+  MaintenanceTimerKind.EMERGENCY_ACK,
+  MaintenanceTimerKind.EMERGENCY_ESCALATION,
 ] as const;
 const DispatchOptions = z.object({
   batch: z.number().int().min(1).max(50).default(10),
@@ -70,6 +78,12 @@ export function executeTimerWithin(
       return handleAbsenceCheckinWithin(tx, task.payload, now);
     case 'ABSENCE_RETURN':
       return handleAbsenceReturnWithin(tx, task.payload, now);
+    case MaintenanceTimerKind.MAINTENANCE_REMINDER:
+      return handleMaintenanceReminderWithin(tx, task.payload, now);
+    case MaintenanceTimerKind.EMERGENCY_ACK:
+      return handleEmergencyAckWithin(tx, task.payload, now);
+    case MaintenanceTimerKind.EMERGENCY_ESCALATION:
+      return handleEmergencyEscalationWithin(tx, task.payload, now);
   }
 }
 
