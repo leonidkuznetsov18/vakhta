@@ -11,6 +11,8 @@ export const COMMAND_ERROR_CODES = [
   'ZONE_NOT_ACCEPTED',
   'HANDOVER_INCOMPLETE',
   'REASON_REQUIRED',
+  // The reason is not an active directory code of the action's kind (application check).
+  'REASON_UNKNOWN',
   'RESUME_STATE_MISSING',
   'MASTER_ONLY',
   'EXIT_QR_REQUIRED',

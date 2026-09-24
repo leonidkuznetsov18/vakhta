@@ -159,6 +159,7 @@ export const en: Messages = {
     ZONE_NOT_ACCEPTED: 'Accept the control zone or report a problem first.',
     HANDOVER_INCOMPLETE: 'Complete the checklist and upload three photos.',
     REASON_REQUIRED: 'Specify a reason.',
+    REASON_UNKNOWN: 'This reason is not in the directory. Pick one from the list.',
     RESUME_STATE_MISSING: 'Could not determine where to return. Contact the shift master.',
     MASTER_ONLY:
       'Only a shift master can close a shift before its report is sent — from Operations, with a comment. An employee closes a shift by scanning the exit QR.',

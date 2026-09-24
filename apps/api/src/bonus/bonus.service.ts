@@ -58,6 +58,7 @@ import {
   TERMINAL_STATES,
   evaluateShift,
   handoverDecisionFrom,
+  isDowntimeNotified,
   reviewSuggestion,
   scoreMonth,
   DEFAULT_LOCALE,
@@ -758,16 +759,13 @@ export class BonusService {
       .from(reasonCodes)
       .where(eq(reasonCodes.kind, 'DOWNTIME'));
     const notifyRequired = new Map(reasons.map((r) => [r.code, r.notifyMaster]));
+    const reportedCodes = new Set(reports.map((r) => r.reasonCode));
     const downtimeEvents = intervals
       .filter((i) => i.state === 'DOWNTIME' && (i.endedAt === null || i.endedAt > i.startedAt))
       .map((i) => ({
         started: true,
         reasonGiven: i.reasonCode !== null,
-        notified:
-          i.reasonCode === null
-            ? false
-            : !notifyRequired.get(i.reasonCode) ||
-              reports.some((r) => r.reasonCode === i.reasonCode),
+        notified: isDowntimeNotified(i.reasonCode, notifyRequired, reportedCodes),
         ended: i.endedAt !== null,
       }));
 

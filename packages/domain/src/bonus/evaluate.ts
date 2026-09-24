@@ -297,3 +297,18 @@ export function evaluateShift(rules: BonusRules, inputs: ShiftBonusInputs): Crit
   }
   return results;
 }
+
+/**
+ * A downtime counts as notified when its reason needs no master notice or a report for it exists.
+ * A code missing from the directory proves nothing, so it is not notified.
+ */
+export function isDowntimeNotified(
+  reasonCode: string | null,
+  notifyRequired: ReadonlyMap<string, boolean>,
+  reportedCodes: ReadonlySet<string>,
+): boolean {
+  if (reasonCode === null) return false;
+  const required = notifyRequired.get(reasonCode);
+  if (required === undefined) return false;
+  return !required || reportedCodes.has(reasonCode);
+}

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BONUS_RULES } from './rules.js';
 import { scoreShift } from './score.js';
-import { evaluateShift, handoverDecisionFrom, type ShiftBonusInputs } from './evaluate.js';
+import {
+  evaluateShift,
+  handoverDecisionFrom,
+  isDowntimeNotified,
+  type ShiftBonusInputs,
+} from './evaluate.js';
 
 const T0 = new Date('2026-09-07T05:00:00Z');
 const plan = { planStartAt: T0, planEndAt: new Date(T0.getTime() + 12 * 3_600_000) };
@@ -180,5 +185,21 @@ describe('оцінка зміни (ТЗ 7.2–7.6, ADR-0007)', () => {
       status: 'missed',
       earnedPoints: 1,
     });
+  });
+});
+
+describe('isDowntimeNotified', () => {
+  const notifyRequired = new Map([
+    ['BREAKDOWN', true],
+    ['NO_MATERIAL', false],
+  ]);
+  it('counts a reason without a required notice, or with a report, as notified', () => {
+    expect(isDowntimeNotified('NO_MATERIAL', notifyRequired, new Set())).toBe(true);
+    expect(isDowntimeNotified('BREAKDOWN', notifyRequired, new Set(['BREAKDOWN']))).toBe(true);
+    expect(isDowntimeNotified('BREAKDOWN', notifyRequired, new Set())).toBe(false);
+  });
+  it('never counts a missing or unknown reason as notified', () => {
+    expect(isDowntimeNotified(null, notifyRequired, new Set())).toBe(false);
+    expect(isDowntimeNotified('CRAFTED', notifyRequired, new Set(['CRAFTED']))).toBe(false);
   });
 });

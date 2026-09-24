@@ -146,6 +146,14 @@ export type QrDepartureResult =
 
 const TERMINAL = [...TERMINAL_STATES];
 
+type ShiftReasonKind = 'DOWNTIME' | 'EMERGENCY';
+
+/** The directory a reason-carrying action takes its code from (FR-DWN-01). */
+const REASON_KIND_BY_ACTION: Partial<Record<ShiftAction, ShiftReasonKind>> = {
+  START_DOWNTIME: 'DOWNTIME',
+  EMERGENCY_EXIT: 'EMERGENCY',
+};
+
 /**
  * Зміна як машина станів у транзакції (ТЗ 4.3–4.5, документ 3.7): SELECT … FOR UPDATE,
  * перевірка expected_version, чистий перехід із @vakhta/domain, закриття й відкриття інтервалу,
@@ -938,6 +946,8 @@ export class ShiftService {
     const ctx = await this.context(tx, session, meta, cmd);
     const result = transition(snapshot, cmd.action, ctx);
     if (!result.ok) return this.fail(result.error, await this.sessionView(tx, session.id), now);
+    if (!(await this.isKnownReason(tx, cmd)))
+      return this.fail('REASON_UNKNOWN', await this.sessionView(tx, session.id), now);
 
     const effectiveEnd = meta.effectiveEndedAt ?? now;
     let closed: IntervalRow | undefined;
@@ -1281,6 +1291,27 @@ export class ShiftService {
         ? { resumeIntoDowntime: cmd.resumeIntoDowntime }
         : {}),
     };
+  }
+
+  /**
+   * Bot callback data is client-controlled, so a reason code must be an active directory entry of
+   * the action's kind; the machine only checks that one is present.
+   */
+  private async isKnownReason(tx: DbOrTx, cmd: CommandInput): Promise<boolean> {
+    const kind = REASON_KIND_BY_ACTION[cmd.action];
+    if (!kind || cmd.reasonCode === undefined) return true;
+    const [row] = await tx
+      .select({ code: reasonCodes.code })
+      .from(reasonCodes)
+      .where(
+        and(
+          eq(reasonCodes.kind, kind),
+          eq(reasonCodes.code, cmd.reasonCode),
+          eq(reasonCodes.isActive, true),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
   }
 
   private async replay(
@@ -1873,7 +1904,7 @@ export class ShiftService {
     return row ?? null;
   }
 
-  private async reasons(kind: 'DOWNTIME' | 'EMERGENCY'): Promise<ReasonOption[]> {
+  private async reasons(kind: ShiftReasonKind): Promise<ReasonOption[]> {
     const rows = await this.db
       .select({ code: reasonCodes.code, label: reasonCodes.label })
       .from(reasonCodes)

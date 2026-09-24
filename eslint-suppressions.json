@@ -2976,7 +2976,7 @@
       "count": 1
     },
     "complexity": {
-      "count": 11
+      "count": 10
     },
     "max-depth": {
       "count": 5
@@ -2988,10 +2988,10 @@
       "count": 8
     },
     "no-nested-ternary": {
-      "count": 6
+      "count": 5
     },
     "no-restricted-syntax": {
-      "count": 48
+      "count": 45
     }
   },
   "apps/api/src/support/support-bot.factory.ts": {

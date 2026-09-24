@@ -477,6 +477,48 @@ describe('shift: машина станів зміни в транзакції (�
     expect(await timerJobs()).toHaveLength(3);
   });
 
+  it('FR-DWN-01: downtime and emergency exit take only an active directory reason of their kind', async () => {
+    await testDb.db
+      .insert(reasonCodes)
+      .values({ kind: 'DOWNTIME', code: 'RETIRED', label: 'Старая', isActive: false });
+    await arrive(petrova);
+    await service.start(petrova, { idempotencyKey: key() }, meta(petrova));
+    await act(petrova, 'START_WORK');
+    const before = await service.activeSession(petrova);
+    if (!before) throw new Error('Missing shift');
+    const refused = [
+      ['START_DOWNTIME', 'ANY'],
+      ['START_DOWNTIME', 'HEALTH'],
+      ['START_DOWNTIME', 'RETIRED'],
+      ['EMERGENCY_EXIT', 'BREAKDOWN'],
+    ] as const;
+    const results = await Promise.all(
+      refused.map(([action, reasonCode]) => act(petrova, action, { reasonCode })),
+    );
+    for (const result of results) {
+      expect(result).toMatchObject({
+        ok: false,
+        error: 'REASON_UNKNOWN',
+        session: { state: 'WORKING', version: before.version },
+      });
+    }
+    const master = await service.masterTransition(
+      before.id,
+      {
+        action: 'EMERGENCY_EXIT',
+        expectedVersion: before.version,
+        idempotencyKey: key(),
+        reasonCode: 'ANY',
+      },
+      MASTER,
+    );
+    expect(master).toMatchObject({ ok: false, error: 'REASON_UNKNOWN' });
+    expect(await service.activeSession(petrova)).toMatchObject({
+      state: 'WORKING',
+      version: before.version,
+    });
+  });
+
   it('екстрений вихід закриває зміну з підсумком і позначає «потрібна перевірка»', async () => {
     await arrive(petrova);
     await service.start(petrova, { idempotencyKey: key() }, meta(petrova));
