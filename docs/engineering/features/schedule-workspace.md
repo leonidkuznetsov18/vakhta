@@ -176,3 +176,17 @@ menu; a hover control with a confirmation must remove a shift without opening th
   One independent review: its length-limit finding is fixed and tested; comments, suppressions and
   plan docs cleaned. Panel details inspected in the synthetic preview at desktop and 375×812. Live Telegram delivery
   was not exercised: it needs a real publication for real employees after deployment.
+
+## Stable loading while creating a schedule — 2026-09-24
+
+- Owner report: «Створити графік» made the page jump — the command-recovery alert with its
+  spinner appeared above the page for every ordinary command, the empty state flashed back, and a
+  short loader replaced it before the plan. Now the plan area under the toolbar is one element
+  (`data-schedule-plan`): hints and the loader share a centred `min-h-64` box, and a month without a
+  plan shows that loader from the tap until the created plan is on screen.
+- `useWorkspace` tracks the command this page is itself sending (`sending`); the recovery alert
+  shows only for a stored command with an unknown outcome or one re-checked on request.
+- Evidence: a frame-recording regression test (empty → loader in the plan area → plan, same
+  element, no recovery alert, no second loader); schedule panel tests (145), typecheck and lint pass.
+  Preview at 700 ms latency, desktop and 375×812: the area keeps its top and height until the plan
+  renders. The header's fixed refresh slot still spins during the post-create refresh.

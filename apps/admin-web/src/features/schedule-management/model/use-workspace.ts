@@ -92,6 +92,8 @@ export function useWorkspace() {
     grid: GridState;
     baseline: GridState;
   } | null>(null);
+  // The command this page itself is persisting and sending, from the tap until its response.
+  const [sending, setSending] = useState<ScheduleWebCommand | null>(null);
   const listInput = { siteId, orgUnitId, periodMonth: month };
   const versionsQuery = useQuery({
     queryKey: scheduleKeys.list(accessKey, listInput),
@@ -236,17 +238,20 @@ export function useWorkspace() {
         result.version.status === 'IN_REVIEW' &&
         result.version.revision > 0
       ) {
-        const follow = await scheduleCommands.getState().enqueue(commandScope, {
+        const next: ScheduleWebCommand = {
           commandId: crypto.randomUUID(),
           action: 'PUBLISH',
           versionId: result.version.id,
           expectedRevision: result.version.revision,
           payload: chained.changeReason ? { changeReason: chained.changeReason } : {},
-        });
+        };
+        setSending(next);
+        const follow = await scheduleCommands.getState().enqueue(commandScope, next);
         if (follow && ownsResponse()) {
           write.mutate(follow);
           return;
         }
+        setSending(null);
       }
       notifySuccess(
         command.action === 'PUBLISH' || command.action === 'REVISE'
@@ -272,10 +277,15 @@ export function useWorkspace() {
           queryKey: scheduleKeys.detail(accessKey, command.versionId),
         });
     },
+    onSettled: (_result, _error, command) =>
+      setSending((current) => (current?.commandId === command.commandId ? null : current)),
     retry: false,
     networkMode: 'always',
   });
   const busy = write.isPending;
+  // A stored command this page is not sending right now has an unknown outcome.
+  const commandUnconfirmed = !!pendingCommand && pendingCommand.commandId !== sending?.commandId;
+  const commandInFlight = !!sending && (busy || !!pendingCommand);
   const {
     commandsBlocked,
     canRetryCommand,
@@ -306,8 +316,13 @@ export function useWorkspace() {
   );
   async function dispatch(command: ScheduleWebCommand) {
     if (!actorId || busy) return;
+    setSending(command);
     const queued = await scheduleCommands.getState().enqueue(commandScope, command);
-    if (queued && ownsResponse()) write.mutate(queued);
+    if (queued && ownsResponse()) {
+      write.mutate(queued);
+      return;
+    }
+    setSending(null);
   }
   function createDraft() {
     if (!canCreateDraft) return;
@@ -486,6 +501,8 @@ export function useWorkspace() {
     busy,
     commandsBlocked,
     pendingCommand,
+    commandUnconfirmed,
+    commandInFlight,
     canRetryCommand,
     commandStorageError: commandQueue.storageError || commandQueue.recoveryError,
     async retryCommand() {

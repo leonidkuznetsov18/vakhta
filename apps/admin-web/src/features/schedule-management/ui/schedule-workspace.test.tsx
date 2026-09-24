@@ -235,6 +235,8 @@ function mockApi(
     unitShifts?: unknown[];
     listFail?: boolean;
     contextFail?: boolean;
+    /** Network latency in milliseconds, so intermediate render states become observable. */
+    delay?: number;
   },
   snapshot: typeof org = org,
   roster = employees,
@@ -244,6 +246,7 @@ function mockApi(
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const requestUrl = new URL(String(input));
     const requestMethod = init?.method ?? 'GET';
+    if (state.delay) await new Promise((resolve) => setTimeout(resolve, state.delay));
     const body: unknown = init?.body ? JSON.parse(String(init.body)) : null;
     calls.push({ method: requestMethod, path: requestUrl.pathname + requestUrl.search, body });
     const command =
@@ -744,6 +747,43 @@ describe('schedule workspace', () => {
       } else expect(await screen.findByText(t.missingTemplates)).toBeTruthy();
     },
   );
+  it('keeps one loader in the plan area from creating a schedule until it is on screen', async () => {
+    const state: { status: string; delay?: number } = { status: 'EMPTY' };
+    mockApi(state);
+    const page = admin();
+    const button = await screen.findByRole('button', { name: t.create });
+    const area = page.container.querySelector('[data-schedule-plan]');
+    expect(area).not.toBeNull();
+    // Every distinct committed state between the click and the created plan.
+    const frames: string[] = [];
+    function record() {
+      const loaders = [...page.container.querySelectorAll('[role="status"]')];
+      const frame = [
+        page.container.querySelector('[data-schedule-plan]') === area ? 'area' : 'area-remounted',
+        screen.queryByText(t.empty) ? 'empty' : '',
+        screen.queryByText(t.commandUnconfirmed) ? 'recovery' : '',
+        ...loaders.map((loader) => (area?.contains(loader) ? 'loader' : 'loader-outside')),
+        page.container.querySelector('[data-resource-calendar]') ? 'plan' : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      if (frames.at(-1) !== frame) frames.push(frame);
+    }
+    const observer = new MutationObserver(record);
+    observer.observe(page.container, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+    });
+    record();
+    state.delay = 20;
+    fireEvent.click(button);
+    await screen.findByText(t.draftState);
+    observer.disconnect();
+    record();
+    expect(frames).toEqual(['area empty', 'area loader', 'area plan']);
+  });
   it('disables creating a schedule after its version list fails and recovers on retry', async () => {
     const state = { status: 'EMPTY', listFail: false };
     const calls = mockApi(state);

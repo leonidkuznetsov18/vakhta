@@ -177,6 +177,27 @@ function planState(w: Workspace): { tone: Tone; label: string } | null {
   return { tone: 'neutral', label: s.statuses[version.status] };
 }
 
+type PlanSurface = 'loading' | 'unit' | 'empty' | 'plan' | 'none';
+
+/** What the plan area under the toolbar shows; creating a month keeps its one loader there. */
+function planSurface(w: Workspace, loading: boolean, empty: boolean): PlanSurface {
+  // In a month without a plan the only command the page can send is the one creating it.
+  if (loading || (empty && w.commandInFlight)) return 'loading';
+  if (w.org && !w.orgUnitId) return 'unit';
+  if (empty) return 'empty';
+  return w.version ? 'plan' : 'none';
+}
+
+// Hints and the loader share one centred box, so switching between them never moves the page.
+const PLACEHOLDER_CLASS = 'flex min-h-64 min-w-0 flex-col items-center justify-center';
+const SURFACE_CLASS: Record<PlanSurface, string> = {
+  loading: PLACEHOLDER_CLASS,
+  unit: PLACEHOLDER_CLASS,
+  empty: PLACEHOLDER_CLASS,
+  plan: 'min-w-0 space-y-4',
+  none: 'min-w-0',
+};
+
 function WorkspaceView({
   workspace: w,
   mode,
@@ -232,6 +253,7 @@ function WorkspaceView({
   const [staffingTrigger, setStaffingTrigger] = useState<HTMLElement | null>(null);
   const { confirm, dialog } = useConfirm();
   const version = w.version;
+  const surface = planSurface(w, loading, empty);
   const dates = periodDates(w.month, date, effectiveMode);
   const resourceDates = mobile ? calendarWeek(date) : dates;
   const adjacent = useAdjacentPlan({ ...w, dates: effectiveMode === 'month' ? [] : resourceDates });
@@ -549,27 +571,25 @@ function WorkspaceView({
           </DropdownMenu>
         )}
       </ScheduleToolbar>
-      {loading ? (
-        <LoadingState
-          label={messages(currentLocale()).ui.common.loading}
-          className="w-full py-12"
-        />
-      ) : w.org && !w.orgUnitId ? (
-        <EmptyState text={t.emptyHint} />
-      ) : empty ? (
-        <EmptyState
-          text={t.empty}
-          description={w.rights.edit ? undefined : t.emptyHint}
-          action={
-            w.rights.edit ? (
-              <Button disabled={!w.canCreateDraft} onClick={w.createDraft}>
-                {t.create}
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
-        version && (
+      <div data-schedule-plan aria-busy={surface === 'loading'} className={SURFACE_CLASS[surface]}>
+        {surface === 'loading' && (
+          <LoadingState label={messages(currentLocale()).ui.common.loading} />
+        )}
+        {surface === 'unit' && <EmptyState text={t.emptyHint} />}
+        {surface === 'empty' && (
+          <EmptyState
+            text={t.empty}
+            description={w.rights.edit ? undefined : t.emptyHint}
+            action={
+              w.rights.edit ? (
+                <Button disabled={!w.canCreateDraft} onClick={w.createDraft}>
+                  {t.create}
+                </Button>
+              ) : undefined
+            }
+          />
+        )}
+        {surface === 'plan' && version && (
           <>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
               {state && <StatusPill tone={state.tone}>{state.label}</StatusPill>}
@@ -776,8 +796,8 @@ function WorkspaceView({
               />
             )}
           </>
-        )
-      )}
+        )}
+      </div>
       {batch && (
         <BatchPlanner
           workspace={w}

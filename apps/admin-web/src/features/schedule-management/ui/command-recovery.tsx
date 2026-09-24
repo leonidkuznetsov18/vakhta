@@ -7,7 +7,7 @@ import type { Workspace } from '../model/use-workspace';
 
 const t = messages(currentLocale()).scheduleWorkspace;
 export function CommandRecovery({ workspace: w }: { workspace: Workspace }) {
-  if (!w.pendingCommand && !w.commandStorageError) return null;
+  if (!w.commandUnconfirmed && !w.commandStorageError) return null;
   return (
     <Alert className="space-y-2">
       <AlertTitle>
@@ -16,7 +16,7 @@ export function CommandRecovery({ workspace: w }: { workspace: Workspace }) {
       <AlertDescription>
         {w.commandStorageError ? t.commandStorageHint : t.commandRecoveryHint}
       </AlertDescription>
-      {w.pendingCommand &&
+      {w.commandUnconfirmed &&
         (w.busy ? (
           <LoadingState label={t.commandChecking} />
         ) : (
