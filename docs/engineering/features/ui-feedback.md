@@ -145,6 +145,7 @@ a Sheet pushed the page down and back. It is removed, and mutations no longer ca
 of cached reads; it cannot move the layout.
 
 Every save now shows its own progress:
+
 - `Button`/`IconButton` take `pending`: the control is inert, `aria-busy`, and the spinner replaces
   its icon while the label stays, so the button keeps its width.
 - `RowAction.pending` marks the running action of one row; that row's "⋯" button shows it (the
