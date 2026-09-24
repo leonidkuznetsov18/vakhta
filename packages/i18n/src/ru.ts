@@ -791,6 +791,11 @@ export const ru: Messages = {
       events: 'События',
       summary: 'Итог',
       empty: 'Открытых смен нет.',
+      notArrived: 'Не пришли на смену',
+      notArrivedDetail:
+        'По графику смена {plan}. С её начала прошло больше {grace} мин, а нет ни QR-прихода, ни открытой смены.',
+      notArrivedEmpty: 'Все, кто запланирован на эту смену, пришли.',
+      writeMessage: 'Написать',
       stale: 'Состояние изменилось, список обновлён. Повторите действие.',
       groups: {
         ALL: 'Все',
@@ -800,6 +805,7 @@ export const ru: Messages = {
         SERVICE_TIME: 'Служебное',
         DOWNTIME: 'Простой',
         NOT_STARTED: 'Не начата',
+        NOT_ARRIVED: 'Не пришли',
         CLOSED: 'Закрыты',
       },
     },

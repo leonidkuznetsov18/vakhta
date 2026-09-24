@@ -155,3 +155,17 @@ face per person), and each zone carries `presentPeople` (open shift in the zone)
 may list employees; otherwise the initials placeholder. Zone cards use the overlay-button pattern of
 `KpiTile`, so stacks are not nested inside a `<button>`. Evidence: domain, API (testcontainers) and
 page tests; preview screenshots at 1440 px and 375 px, tooltips checked by hover.
+
+## 2026-09-24 — Not-arrived people listed in Operations
+
+Owner request: the card counted people who did not arrive, but Operations only lists shift sessions,
+so they were invisible there. `staffing.notArrivedPeople` is now `OverviewPlannedPerson` (adds
+personnel number, unit name and planned end). Operations reads the same snapshot
+(`useOverviewStaffing`, shared `keys.overview` cache, refreshed by the shift SSE) and merges the people
+as `NOT_ARRIVED` rows (`operations/rows.ts`) only for the snapshot's business date and never for the
+closed scope. An open shift of the same employee hides the row (the snapshot is older than the
+arrival); a closed one does not. The card deep-links with `operations.group = NOT_ARRIVED`; the toolbar
+shows a labelled "Стан" select with counts, synced with the chips. Other dates do not reconstruct
+no-shows. Evidence: rows unit tests, page tests, API testcontainers test, preview screenshots at
+desktop and 375 px. A preview fixture reused one employee id for a no-show and a working person,
+which made the card read 2 and the list 1; the fixture now has a unique id.

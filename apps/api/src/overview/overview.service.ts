@@ -39,6 +39,7 @@ import type {
   OverviewDowntime,
   OverviewHandover,
   OverviewPerson,
+  OverviewPlannedPerson,
   OverviewQuery,
   OverviewScopeOptions,
   OverviewSiteContext,
@@ -197,7 +198,8 @@ export class OverviewService {
         const setupScope = section(SECTION_ROLES.setup);
 
         const staffingBySite = new Map<string, StaffingSnapshot>();
-        const people = new Map<string, OverviewPerson>();
+        const plannedPeople = new Map<string, OverviewPlannedPerson>();
+        const arrivedPeople = new Map<string, OverviewPerson>();
         const planned: PlannedRow[] = [];
         for (const { site, ctx } of contexts) {
           if (!staffingScope || !ctx.current) continue;
@@ -212,15 +214,18 @@ export class OverviewService {
             selection,
           );
           for (const r of rows)
-            people.set(`plan:${r.employeeId}`, {
+            plannedPeople.set(r.employeeId, {
               employeeId: r.employeeId,
               fullName: r.fullName,
+              personnelNumber: r.personnelNumber,
+              orgUnitName: r.orgUnitName,
               planStartAt: r.planStartAt.toISOString(),
+              planEndAt: r.planEndAt.toISOString(),
               zoneName: r.zoneName,
             });
           for (const a of arrivals)
-            if (!people.has(`here:${a.employeeId}`))
-              people.set(`here:${a.employeeId}`, {
+            if (!arrivedPeople.has(a.employeeId))
+              arrivedPeople.set(a.employeeId, {
                 employeeId: a.employeeId,
                 fullName: a.fullName,
                 planStartAt: null,
@@ -243,7 +248,10 @@ export class OverviewService {
         }
 
         const staffing: OverviewStaffing | null = staffingScope
-          ? this.sumStaffing(contexts, staffingBySite, people)
+          ? this.sumStaffing(contexts, staffingBySite, {
+              planned: plannedPeople,
+              arrived: arrivedPeople,
+            })
           : null;
 
         const downtime = incidentScope
@@ -551,6 +559,8 @@ export class OverviewService {
         zoneId: shiftAssignments.zoneId,
         orgUnitId: shiftAssignments.orgUnitId,
         fullName: employees.fullName,
+        personnelNumber: employees.personnelNumber,
+        orgUnitName: orgUnits.name,
         zoneName: responsibilityZones.name,
       })
       .from(shiftAssignments)
@@ -687,8 +697,12 @@ export class OverviewService {
   private sumStaffing(
     contexts: readonly { site: SiteRow; ctx: ReturnType<typeof shiftContext> }[],
     bySite: ReadonlyMap<string, StaffingSnapshot>,
-    people: ReadonlyMap<string, OverviewPerson>,
+    people: {
+      readonly planned: ReadonlyMap<string, OverviewPlannedPerson>;
+      readonly arrived: ReadonlyMap<string, OverviewPerson>;
+    },
   ): OverviewStaffing {
+    const { planned, arrived } = people;
     const all = [...bySite.values()];
     const sum = (k: 'planned' | 'present' | 'notArrived' | 'expected' | 'unscheduled') =>
       all.reduce((s, x) => s + x[k], 0);
@@ -705,16 +719,16 @@ export class OverviewService {
       unscheduled: sum('unscheduled'),
       presentPeople: all
         .flatMap((s) => s.presentEmployeeIds)
-        .flatMap((id) => people.get(`plan:${id}`) ?? []),
+        .flatMap((id) => planned.get(id) ?? []),
       expectedPeople: all
         .flatMap((s) => s.expectedEmployeeIds)
-        .flatMap((id) => people.get(`plan:${id}`) ?? []),
+        .flatMap((id) => planned.get(id) ?? []),
       notArrivedPeople: all
         .flatMap((s) => s.notArrivedEmployeeIds)
-        .flatMap((id) => people.get(`plan:${id}`) ?? []),
+        .flatMap((id) => planned.get(id) ?? []),
       unscheduledPeople: all
         .flatMap((s) => s.unscheduledEmployeeIds)
-        .flatMap((id) => people.get(`here:${id}`) ?? []),
+        .flatMap((id) => arrived.get(id) ?? []),
       oldestNotArrivedSince: oldest?.toISOString() ?? null,
       businessDate: firstDate,
     };
@@ -1182,6 +1196,8 @@ interface PlannedRow {
   readonly zoneId: string | null;
   readonly orgUnitId: string;
   readonly fullName: string;
+  readonly personnelNumber: string;
+  readonly orgUnitName: string;
   readonly zoneName: string | null;
 }
 

@@ -671,11 +671,17 @@ export interface Messages {
       readonly events: string;
       readonly summary: string;
       readonly empty: string;
+      /** A planned person of the current shift with no recorded arrival, listed as a row. */
+      readonly notArrived: string;
+      readonly notArrivedDetail: string;
+      readonly notArrivedEmpty: string;
+      readonly writeMessage: string;
       readonly stale: string;
       /** State groups for the KPI chips above the live table. */
       readonly groups: Readonly<
         Record<
           | 'ALL'
+          | 'NOT_ARRIVED'
           | 'WORKING'
           | 'BREAK'
           | 'MEAL'

@@ -163,8 +163,9 @@ export function OverviewPage({
     }
     if (item.key === 'terminalsOffline') return openTerminals(TerminalConnectivity.OFFLINE);
     if (item.key === 'longDowntime') return operations({ 'operations.group': 'DOWNTIME' });
-    // Not arrived: the live-shift screen is where a master starts a shift for an employee.
-    operations({ 'operations.scope': 'ALL' });
+    // Not arrived: the live-shift screen lists exactly these people, where a master can start
+    // their shift or write to them.
+    operations({ 'operations.group': 'NOT_ARRIVED' });
   }
 
   /** The terminal list opens filtered to exactly the terminals the card counted. */

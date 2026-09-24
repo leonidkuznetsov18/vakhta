@@ -88,6 +88,9 @@ not shown; while loading it shows a spinner, after a failure "Повторити
   versions that overlap the shift. Details: not arrived, expected (their start plus grace has not come
   yet) and "+N поза графіком" (people on shift without a plan). Without a plan the tile reads "На цю
   зміну графіка немає" and opens Schedule.
+  The "Не прийшли за графіком" queue card opens Operations with the state filter "Не прийшли": each
+  missing person is a row with the status "Не прийшли на зміну", the planned shift, zone and time since
+  the planned start, and offers "Відкрити зміну" and "Написати". The toolbar names the state filter.
 - **"Час до реакції"** — the median time from a problem report to the master's reaction (acknowledgement,
   or resolution without one) for incidents reported during this shift; "SLA дотримано: 5 з 6" and
   "чекають реакції: 1" for incidents still waiting.

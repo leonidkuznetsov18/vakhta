@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import type { MeView } from '@vakhta/contracts';
 import { overviewApi } from '@/api';
 import { keys } from '@/lib/query';
@@ -27,6 +27,24 @@ export function useOverviewSnapshot(me: MeView, selection: OverviewSelection, in
     refetchInterval: intervalMs,
     placeholderData: (previous) => previous,
   });
+}
+
+/**
+ * The same snapshot read by another screen for its staffing. No placeholder: after a scope change
+ * the previous scope's people must not stand in for the new one.
+ */
+export function useOverviewStaffing(selection: OverviewSelection, intervalMs = 60_000) {
+  const q = {
+    ...(selection.siteId ? { siteId: selection.siteId } : {}),
+    ...(selection.orgUnitId ? { orgUnitId: selection.orgUnitId } : {}),
+  };
+  return useQuery(
+    queryOptions({
+      queryKey: keys.overview(q),
+      queryFn: () => overviewApi.snapshot(q),
+      refetchInterval: intervalMs,
+    }),
+  );
 }
 
 /** Recent operational events for the feed (spec 004 US8). */

@@ -793,6 +793,11 @@ export const uk: Messages = {
       events: 'Події',
       summary: 'Підсумок',
       empty: 'Відкритих змін немає.',
+      notArrived: 'Не прийшли на зміну',
+      notArrivedDetail:
+        'За графіком зміна {plan}. Минуло понад {grace} хв від її початку, а ні QR-приходу, ні відкритої зміни немає.',
+      notArrivedEmpty: 'Усі, кого заплановано на цю зміну, прийшли.',
+      writeMessage: 'Написати',
       stale: 'Стан змінився, список оновлено. Повторіть дію.',
       groups: {
         ALL: 'Усі',
@@ -802,6 +807,7 @@ export const uk: Messages = {
         SERVICE_TIME: 'Службовий',
         DOWNTIME: 'Простій',
         NOT_STARTED: 'Не почата',
+        NOT_ARRIVED: 'Не прийшли',
         CLOSED: 'Закриті',
       },
     },

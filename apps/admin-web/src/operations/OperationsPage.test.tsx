@@ -101,7 +101,38 @@ interface Call {
   body: unknown;
 }
 
-function mockApi(state: { rows: ReturnType<typeof row>[] }) {
+const ABSENT = 'b0000000-0000-4000-8000-000000000002';
+
+function staffing(businessDate: string) {
+  return {
+    planned: 2,
+    present: 1,
+    notArrived: 1,
+    expected: 0,
+    unscheduled: 0,
+    presentPeople: [],
+    expectedPeople: [],
+    notArrivedPeople: [
+      {
+        employeeId: ABSENT,
+        fullName: 'Ярошенко Лідія',
+        personnelNumber: '0002',
+        orgUnitName: 'Цех фасовки',
+        planStartAt: '2026-09-07T05:00:00.000Z',
+        planEndAt: '2026-09-07T17:00:00.000Z',
+        zoneName: 'Линия 2',
+      },
+    ],
+    unscheduledPeople: [],
+    oldestNotArrivedSince: '2026-09-07T05:00:00.000Z',
+    businessDate,
+  };
+}
+
+function mockApi(state: {
+  rows: ReturnType<typeof row>[];
+  staffing?: ReturnType<typeof staffing> | null;
+}) {
   const calls: Call[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -123,9 +154,24 @@ function mockApi(state: { rows: ReturnType<typeof row>[] }) {
             currentPosition: null,
             createdAt: 'x',
           },
+          {
+            id: ABSENT,
+            personnelNumber: '0002',
+            fullName: 'Ярошенко Лідія',
+            status: 'ACTIVE',
+            telegramLinked: true,
+            currentPosition: null,
+            createdAt: 'x',
+          },
         ]);
       }
       if (url.pathname === '/admin/shifts' && method === 'GET') return json(state.rows);
+      if (url.pathname === '/admin/overview')
+        return json({
+          generatedAt: '2026-09-07T06:30:00.000Z',
+          lateGraceMinutes: 10,
+          staffing: state.staffing ?? null,
+        });
       if (url.pathname === `/admin/shifts/${SESSION}` && method === 'GET') {
         return json({
           session: state.rows[0],
@@ -329,4 +375,50 @@ describe('OperationsPage', () => {
       expect(await screen.findByText('SHIFT_STARTED')).toBeTruthy();
     },
   );
+
+  it('lists people who did not arrive as rows with their own status and filter', async () => {
+    setUiState({ 'operations.day': '2026-09-07', 'operations.group': 'NOT_ARRIVED' });
+    mockApi({ rows: [row('WORKING')], staffing: staffing('2026-09-07') });
+    await render(<OperationsPage />);
+    expect(await screen.findByText('Ярошенко Лідія')).toBeTruthy();
+    // The overview link opens the filter, so only the missing person is listed, with the gap.
+    expect(screen.queryByText('Кузнецов Леонид')).toBeNull();
+    expect(screen.getAllByText('Не пришли на смену').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/1 ч 30 мин/)).toBeTruthy();
+    // The preset reads as a named filter in the toolbar, with its count.
+    const filter = screen.getByRole('combobox', { name: 'Состояние' });
+    expect((filter as HTMLSelectElement).value).toBe('NOT_ARRIVED');
+    expect(screen.getByRole('option', { name: 'Не пришли (1)' })).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Ярошенко Лідія'));
+    expect(await screen.findByTestId('not-arrived-detail')).toBeTruthy();
+    const [start] = screen.getAllByRole('button', { name: 'Открыть смену' });
+    if (start) fireEvent.click(start);
+    const dialog = await screen.findByRole('dialog');
+    expect((dialog.querySelector('select') as HTMLSelectElement | null)?.value).toBe(ABSENT);
+  });
+
+  it('keeps a person who has a shift row out of the not-arrived list', async () => {
+    setUiState({ 'operations.day': '2026-09-07', 'operations.group': 'ALL' });
+    const late = staffing('2026-09-07');
+    mockApi({
+      rows: [row('WORKING')],
+      staffing: {
+        ...late,
+        notArrivedPeople: late.notArrivedPeople.map((p) => ({ ...p, employeeId: EMP })),
+      },
+    });
+    await render(<OperationsPage />);
+    expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText('Не пришли на смену')).toBeNull());
+  });
+
+  it('does not add the current shift no-shows to another day', async () => {
+    setUiState({ 'operations.day': '2026-09-06', 'operations.group': 'NOT_ARRIVED' });
+    mockApi({ rows: [row('WORKING')], staffing: staffing('2026-09-07') });
+    await render(<OperationsPage />);
+    expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
+    expect(screen.queryByText('Ярошенко Лідія')).toBeNull();
+    expect(screen.queryByRole('radio', { name: /Не пришли/ })).toBeNull();
+  });
 });

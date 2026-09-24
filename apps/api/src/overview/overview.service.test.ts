@@ -305,7 +305,17 @@ describe('overview snapshot (spec 004)', () => {
       expected: 1,
       unscheduled: 1,
     });
-    expect(s.staffing!.notArrivedPeople.map((p) => p.fullName)).toEqual(['Missing Boris']);
+    // The live-shift screen lists the no-show as a row, so the person carries the planned shift.
+    expect(s.staffing!.notArrivedPeople).toMatchObject([
+      {
+        fullName: 'Missing Boris',
+        personnelNumber: 'E1',
+        orgUnitName: 'Lathe shop',
+        planStartAt: '2026-09-13T05:00:00.000Z',
+        planEndAt: '2026-09-13T17:00:00.000Z',
+        zoneName: 'Lathe 1',
+      },
+    ]);
     expect(s.staffing!.unscheduledPeople.map((p) => p.fullName)).toEqual(['Unplanned Eva']);
     expect(s.downtime).toMatchObject({ zoneMinutes: 15, personMinutes: 15, incidents: 2 });
     expect(s.downtime!.byZone[0]).toMatchObject({ zoneName: 'Packing line', minutes: 15 });

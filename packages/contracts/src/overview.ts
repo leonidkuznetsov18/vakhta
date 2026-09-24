@@ -52,6 +52,15 @@ export const OverviewPerson = z.object({
 });
 export type OverviewPerson = z.infer<typeof OverviewPerson>;
 
+/** A planned person the live-shift screen lists as a row when nothing records their arrival. */
+export const OverviewPlannedPerson = OverviewPerson.extend({
+  personnelNumber: z.string(),
+  orgUnitName: z.string(),
+  planStartAt: IsoDateTime,
+  planEndAt: IsoDateTime,
+});
+export type OverviewPlannedPerson = z.infer<typeof OverviewPlannedPerson>;
+
 export const OverviewStaffing = z.object({
   planned: z.number().int().nonnegative(),
   present: z.number().int().nonnegative(),
@@ -60,7 +69,7 @@ export const OverviewStaffing = z.object({
   unscheduled: z.number().int().nonnegative(),
   presentPeople: z.array(OverviewPerson),
   expectedPeople: z.array(OverviewPerson),
-  notArrivedPeople: z.array(OverviewPerson),
+  notArrivedPeople: z.array(OverviewPlannedPerson),
   unscheduledPeople: z.array(OverviewPerson),
   oldestNotArrivedSince: IsoDateTime.nullable(),
   /** Business date of the first counted window, for the destination day filter. */

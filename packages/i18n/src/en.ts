@@ -793,6 +793,11 @@ export const en: Messages = {
       events: 'Events',
       summary: 'Summary',
       empty: 'No open shifts.',
+      notArrived: 'Did not arrive',
+      notArrivedDetail:
+        'Scheduled for {plan}. More than {grace} min have passed since the start, and there is neither a QR arrival nor an open shift.',
+      notArrivedEmpty: 'Everyone scheduled for this shift has arrived.',
+      writeMessage: 'Write',
       stale: 'The state changed, the list is refreshed. Repeat the action.',
       groups: {
         ALL: 'All',
@@ -802,6 +807,7 @@ export const en: Messages = {
         SERVICE_TIME: 'Service time',
         DOWNTIME: 'Downtime',
         NOT_STARTED: 'Not started',
+        NOT_ARRIVED: 'Not arrived',
         CLOSED: 'Closed',
       },
     },

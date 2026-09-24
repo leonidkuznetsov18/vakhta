@@ -1,4 +1,5 @@
 import { useCommunicationDraft } from '@/features/employee-communications';
+import { useOverviewStaffing } from '@/features/overview';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -26,7 +27,7 @@ import {
   type Tone,
   Toolbar,
 } from '@/components/app/page';
-import { formatTime, todayIso } from '@/lib/format';
+import { formatDuration, formatTime, todayIso } from '@/lib/format';
 import { shiftsApi } from '../api.ts';
 import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
@@ -37,7 +38,7 @@ import { keys } from '@/lib/query';
 import { isBlank } from '@/lib/forms';
 import { notifySuccess } from '@/lib/toast';
 import { cn } from 'cn';
-import { EyeIcon, FlagIcon, SendIcon } from 'lucide-react';
+import { EyeIcon, FlagIcon, PlayIcon, SendIcon, UserXIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -50,43 +51,21 @@ import {
 } from '@/components/ui/dialog';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { useNavigate, useParams } from '@tanstack/react-router';
+import {
+  OperationsRowKind,
+  STATE_GROUPS,
+  StateGroup,
+  groupCounts,
+  notArrivedApplies,
+  operationsRows,
+  visibleRows as visibleOf,
+  type NotArrivedRow,
+  type OperationsRow,
+} from './rows.ts';
 
 const all = messages(currentLocale());
 const o = all.admin.operations;
 const hints = all.ui.hints;
-
-type StateGroup = keyof typeof o.groups;
-const GROUPS: readonly StateGroup[] = [
-  'ALL',
-  'WORKING',
-  'BREAK',
-  'MEAL',
-  'SERVICE_TIME',
-  'DOWNTIME',
-  'NOT_STARTED',
-  'CLOSED',
-];
-function groupOf(state: ShiftState): Exclude<StateGroup, 'ALL'> {
-  switch (state) {
-    case 'BREAK':
-    case 'MEAL':
-    case 'SERVICE_TIME':
-    case 'DOWNTIME':
-    case 'NOT_STARTED':
-      return state;
-    case 'SHIFT_CLOSED':
-    case 'EMERGENCY_EXIT':
-      return 'CLOSED';
-    default:
-      return 'WORKING';
-  }
-}
-function rank(row: ActiveShiftView): number {
-  if (row.needsClarification) return 0;
-  if (row.state === 'DOWNTIME') return 1;
-  if (row.state === 'EMERGENCY_EXIT') return 2;
-  return 3;
-}
 
 export const STATE_TONE: Record<ShiftState, Tone> = {
   NOT_STARTED: 'neutral',
@@ -140,7 +119,9 @@ export function OperationsPage() {
   };
   const [startFor, setStartFor] = useState('');
   const [startOpen, setStartOpen] = useState(false);
-  const [group, setGroup] = usePersistentState<StateGroup>('operations.group', 'ALL');
+  const [group, setGroup] = usePersistentState<StateGroup>('operations.group', StateGroup.ALL);
+  // A missing person has no shift record to put in the address, so their row opens locally.
+  const [openAbsent, setOpenAbsent] = useState<string | null>(null);
   const [startComment, setStartComment] = useState('');
   const [startZone, setStartZone] = useState('');
   const [action, setAction] = useState<Record<string, UserShiftAction | ''>>({});
@@ -160,10 +141,22 @@ export function OperationsPage() {
     queryKey: keys.shifts(query),
     queryFn: () => shiftsApi.list(query),
   });
-  const rows = shifts.data ?? [];
+  // The overview counts the no-shows from this snapshot; reading the same one keeps both screens
+  // naming the same people.
+  const staffingQuery = useOverviewStaffing({
+    siteId: siteId || null,
+    orgUnitId: orgUnitId || null,
+  });
+  const staffing = staffingQuery.data?.staffing;
+  const withAbsent = notArrivedApplies(staffing, date, scope);
+  const rows = operationsRows(
+    shifts.data ?? [],
+    withAbsent ? staffing.notArrivedPeople : [],
+    staffingQuery.data?.generatedAt ?? '',
+  );
   // Any state change anywhere on the floor makes this list stale; the heartbeat keeps the
-  // connection alive and the badge honest (spec 9.2).
-  const live = useLiveUpdates(shiftsApi.streamUrl(), 'shift', ['shifts']);
+  // connection alive and the badge honest (spec 9.2). An arrival also changes who is missing.
+  const live = useLiveUpdates(shiftsApi.streamUrl(), 'shift', ['shifts'], [['overview']]);
 
   const client = useQueryClient();
   const refresh = () => client.invalidateQueries({ queryKey: ['shifts'] });
@@ -173,6 +166,7 @@ export function OperationsPage() {
     queryFn: () => shiftsApi.detail(openId!),
     enabled: openId !== null,
   });
+  const graceMinutes = staffingQuery.data?.lateGraceMinutes ?? 0;
   const detail = detailQuery.data ?? null;
 
   /**
@@ -312,98 +306,102 @@ export function OperationsPage() {
     });
   }
 
-  const counts = (() => {
-    const c: Record<StateGroup, number> = {
-      ALL: rows.length,
-      WORKING: 0,
-      BREAK: 0,
-      MEAL: 0,
-      SERVICE_TIME: 0,
-      DOWNTIME: 0,
-      NOT_STARTED: 0,
-      CLOSED: 0,
-    };
-    for (const row of rows) c[groupOf(row.state)] += 1;
-    return c;
-  })();
-  // Exceptions first: shifts flagged for review, then downtime, then the rest in list order.
-  const visibleRows = [
-    ...(group === 'ALL' ? rows : rows.filter((row) => groupOf(row.state) === group)),
-  ].sort((a, b) => rank(a) - rank(b));
+  const counts = groupCounts(rows);
+  const groups = STATE_GROUPS.filter(
+    (g) =>
+      (g !== StateGroup.CLOSED || scope !== 'OPEN') && (g !== StateGroup.NOT_ARRIVED || withAbsent),
+  );
+  // A remembered filter the current day cannot show falls back to everything rather than to nothing.
+  const activeGroup = groups.includes(group) ? group : StateGroup.ALL;
+  const visibleRows = visibleOf(rows, activeGroup);
+  const tableQuery = activeGroup === StateGroup.NOT_ARRIVED ? staffingQuery : shifts;
 
-  const columns: Column<ActiveShiftView>[] = [
+  /** A count only once its list has arrived: a zero would claim nobody is in that state. */
+  function groupLabel(g: StateGroup): string {
+    const loaded = shifts.data !== undefined && (g !== StateGroup.NOT_ARRIVED || withAbsent);
+    return loaded ? `${o.groups[g]} (${counts[g]})` : o.groups[g];
+  }
+
+  function toggleRow(row: OperationsRow) {
+    if (row.kind === OperationsRowKind.NOT_ARRIVED) {
+      setOpenAbsent(openAbsent === row.key ? null : row.key);
+      return;
+    }
+    setOpenAbsent(null);
+    setOpenId(openId === row.key ? null : row.key);
+  }
+
+  function openStartFor(row: NotArrivedRow) {
+    setStartFor(row.person.employeeId);
+    setStartZone('');
+    setStartOpen(true);
+  }
+
+  function writeTo(row: NotArrivedRow) {
+    communicationDraft.open(
+      {
+        id: row.person.employeeId,
+        fullName: row.person.fullName,
+        personnelNumber: row.person.personnelNumber,
+      },
+      '',
+    );
+  }
+
+  const columns: Column<OperationsRow>[] = [
     {
       key: 'employee',
-      sortValue: (row) => row.fullName,
+      sortValue: (row) => employeeOf(row).fullName,
       header: o.employee,
-      cell: (row) => (
-        <div>
-          <div className="font-medium">{row.fullName}</div>
-          <Muted>
-            {row.personnelNumber}
-            {row.orgUnitName ? ` · ${row.orgUnitName}` : ''}
-          </Muted>
-        </div>
-      ),
+      cell: (row) => {
+        const person = employeeOf(row);
+        return (
+          <div>
+            <div className="font-medium">{person.fullName}</div>
+            <Muted>
+              {person.personnelNumber}
+              {person.orgUnitName ? ` · ${person.orgUnitName}` : ''}
+            </Muted>
+          </div>
+        );
+      },
     },
     {
       key: 'state',
-      sortValue: (row) => all.states[row.state],
+      sortValue: (row) => stateLabel(row),
       header: o.state,
-      cell: (row) => (
-        <div className="flex flex-wrap items-center gap-1">
-          <StatusPill tone={STATE_TONE[row.state]}>{all.states[row.state]}</StatusPill>
-          {row.resumeState && <Muted>→ {all.states[row.resumeState]}</Muted>}
-        </div>
-      ),
+      cell: (row) => <StateCell row={row} />,
     },
     {
       key: 'since',
-      sortValue: (row) => row.stateSince,
+      sortValue: (row) => sinceOf(row),
       header: o.since,
-      cell: (row) => (
-        <span className="tabular-nums">
-          {formatTime(row.stateSince)} <Muted>({`${row.stateMinutes} ${o.minutes}`})</Muted>
-        </span>
-      ),
+      cell: (row) => <SinceCell row={row} />,
     },
     {
       key: 'plan',
-      sortValue: (row) => row.planStartAt,
+      sortValue: (row) => planOf(row).start,
       header: o.plan,
-      cell: (row) => (
-        <span className="tabular-nums">
-          {row.planStartAt ? `${formatTime(row.planStartAt)}–${formatTime(row.planEndAt)}` : '—'}
-        </span>
-      ),
+      cell: (row) => {
+        const plan = planOf(row);
+        return (
+          <span className="tabular-nums">
+            {plan.start ? `${formatTime(plan.start)}–${formatTime(plan.end)}` : '—'}
+          </span>
+        );
+      },
     },
-    { key: 'zone', header: o.zone, cell: (row) => row.zoneName ?? '—' },
+    { key: 'zone', header: o.zone, cell: (row) => zoneOf(row) ?? '—' },
     {
       key: 'presence',
-      sortValue: (row) => row.presenceSince,
+      sortValue: (row) => presenceOf(row),
       header: o.presence,
-      cell: (row) => <span className="tabular-nums">{formatTime(row.presenceSince)}</span>,
+      cell: (row) => <span className="tabular-nums">{formatTime(presenceOf(row))}</span>,
     },
     {
       key: 'flags',
       header: o.flags,
-      cell: (row) => (
-        <div className="flex flex-wrap gap-1">
-          {row.needsClarification && <StatusPill tone="danger">{o.needsClarification}</StatusPill>}
-          {row.autoCloseReason && (
-            <StatusPill tone="warning">
-              {all.shift.estimatedEndLabel}
-              <InfoTip text={all.shift.estimatedClosure} />
-            </StatusPill>
-          )}
-          {row.autoCloseReason === 'NO_CHECKLIST' && (
-            <StatusPill tone="danger">{o.closedNoChecklist}</StatusPill>
-          )}
-          {!row.zoneAccepted && row.state === 'PREPARATION' && (
-            <StatusPill tone="warning">{o.zoneNotAccepted}</StatusPill>
-          )}
-        </div>
-      ),
+      cell: (row) => (row.kind === OperationsRowKind.SHIFT ? <ShiftFlags row={row.shift} /> : null),
     },
   ];
 
@@ -494,12 +492,12 @@ export function OperationsPage() {
     );
   }
 
-  const rowActions = (row: ActiveShiftView): RowAction[] => [
+  const shiftActions = (row: ActiveShiftView): RowAction[] => [
     {
       key: 'detail',
       label: o.detail,
       icon: EyeIcon,
-      onSelect: () => setOpenId(openId === row.id ? null : row.id),
+      onSelect: () => toggleRow({ kind: OperationsRowKind.SHIFT, key: row.id, shift: row }),
     },
     ...(!row.needsClarification && row.endedAt === null && !isTerminal(row.state)
       ? [
@@ -514,6 +512,49 @@ export function OperationsPage() {
         ]
       : []),
   ];
+
+  const notArrivedActions = (row: NotArrivedRow): RowAction[] => [
+    { key: 'detail', label: o.detail, icon: EyeIcon, onSelect: () => toggleRow(row) },
+    { key: 'start', label: o.start, icon: PlayIcon, onSelect: () => openStartFor(row) },
+    { key: 'write', label: o.writeMessage, icon: SendIcon, onSelect: () => writeTo(row) },
+  ];
+
+  function rowActions(row: OperationsRow): RowAction[] {
+    switch (row.kind) {
+      case OperationsRowKind.SHIFT:
+        return shiftActions(row.shift);
+      case OperationsRowKind.NOT_ARRIVED:
+        return notArrivedActions(row);
+    }
+  }
+
+  function renderNotArrived(row: NotArrivedRow) {
+    const plan = `${formatTime(row.person.planStartAt)}–${formatTime(row.person.planEndAt)}`;
+    return (
+      <div className="flex max-w-2xl flex-col gap-3 py-1" data-testid="not-arrived-detail">
+        <p className="text-sm">{format(o.notArrivedDetail, { plan, grace: graceMinutes })}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={() => openStartFor(row)}>
+            <PlayIcon aria-hidden="true" />
+            {o.start}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => writeTo(row)}>
+            <SendIcon aria-hidden="true" />
+            {o.writeMessage}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function expandedRow(row: OperationsRow) {
+    switch (row.kind) {
+      case OperationsRowKind.SHIFT:
+        return row.key === openId ? renderDetail(row.shift) : null;
+      case OperationsRowKind.NOT_ARRIVED:
+        return row.key === openAbsent ? renderNotArrived(row) : null;
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -564,6 +605,16 @@ export function OperationsPage() {
           hint={hints.operationsScope}
           options={SHIFT_SCOPES.map((s) => ({ value: s, label: o.scopes[s] }))}
           className="w-44"
+        />
+        {/* The state filter named in the toolbar: arriving from another page with a preset (not
+            arrived, downtime) must read as a filter, not as a list that lost people. */}
+        <SelectField
+          label={o.state}
+          value={activeGroup}
+          onChange={(v) => setGroup((v || StateGroup.ALL) as StateGroup)}
+          searchable={false}
+          options={groups.map((g) => ({ value: g, label: groupLabel(g) }))}
+          className="w-48"
         />
         <div className="ml-auto flex items-center gap-2">
           <Dialog open={startOpen} onOpenChange={setStartOpen}>
@@ -644,16 +695,17 @@ export function OperationsPage() {
         type="single"
         variant="outline"
         size="sm"
-        value={group}
-        onValueChange={(v) => setGroup((v || 'ALL') as StateGroup)}
+        value={activeGroup}
+        onValueChange={(v) => setGroup((v || StateGroup.ALL) as StateGroup)}
         className="flex-wrap justify-start"
         aria-label={o.state}
       >
-        {GROUPS.filter((g) => g !== 'CLOSED' || scope !== 'OPEN').map((g) => (
+        {groups.map((g) => (
           <ToggleGroupItem key={g} value={g} className="gap-1">
+            {g === StateGroup.NOT_ARRIVED && <UserXIcon aria-hidden="true" />}
             {o.groups[g]}
             {/* No count until the list arrives: a zero would claim nobody is in that state. */}
-            {shifts.data !== undefined && (
+            {shifts.data !== undefined && (g !== StateGroup.NOT_ARRIVED || withAbsent) && (
               <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{counts[g]}</span>
             )}
           </ToggleGroupItem>
@@ -665,25 +717,24 @@ export function OperationsPage() {
       <Feedback error={error} />
 
       <DataTable
-        queryState={shifts}
+        queryState={tableQuery}
         columns={columns}
         rows={visibleRows}
         loading={orgQuery.isPending && orgQuery.isFetching}
         storageKey="operations"
-        rowLabel={(row) => `${row.fullName} · ${row.personnelNumber}`}
-        resetKey={`${siteId}:${orgUnitId}:${scope}:${date}:${group}`}
-        searchText={(row) =>
-          `${row.fullName} ${row.personnelNumber} ${row.orgUnitName ?? ''} ${row.zoneName ?? ''} ${all.states[row.state]}`
-        }
-        onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
+        rowLabel={(row) => `${employeeOf(row).fullName} · ${employeeOf(row).personnelNumber}`}
+        resetKey={`${siteId}:${orgUnitId}:${scope}:${date}:${activeGroup}`}
+        searchText={(row) => {
+          const person = employeeOf(row);
+          return `${person.fullName} ${person.personnelNumber} ${person.orgUnitName ?? ''} ${zoneOf(row) ?? ''} ${stateLabel(row)}`;
+        }}
+        onRowClick={toggleRow}
         rowActions={rowActions}
-        rowKey={(row) => row.id}
-        empty={o.empty}
-        rowClassName={(row) =>
-          row.needsClarification || row.autoCloseReason === 'NO_CHECKLIST' ? ROW_DANGER : undefined
-        }
-        activeKey={openId}
-        expanded={(row) => (row.id === openId ? renderDetail(row) : null)}
+        rowKey={(row) => row.key}
+        empty={activeGroup === StateGroup.NOT_ARRIVED ? o.notArrivedEmpty : o.empty}
+        rowClassName={(row) => (needsAttention(row) ? ROW_DANGER : undefined)}
+        activeKey={openAbsent ?? openId}
+        expanded={expandedRow}
       />
 
       {dialog}
@@ -753,6 +804,93 @@ function DetailPanel({
             {detail.summary.overtimePending ? ` · ${all.shift.summaryOvertimePending}` : ''}
           </p>
         </div>
+      )}
+    </div>
+  );
+}
+
+function employeeOf(row: OperationsRow) {
+  switch (row.kind) {
+    case OperationsRowKind.SHIFT:
+      return row.shift;
+    case OperationsRowKind.NOT_ARRIVED:
+      return row.person;
+  }
+}
+
+function stateLabel(row: OperationsRow): string {
+  return row.kind === OperationsRowKind.SHIFT ? all.states[row.shift.state] : o.notArrived;
+}
+
+function sinceOf(row: OperationsRow): string | null {
+  return row.kind === OperationsRowKind.SHIFT ? row.shift.stateSince : row.person.planStartAt;
+}
+
+function planOf(row: OperationsRow): { start: string | null; end: string | null } {
+  if (row.kind === OperationsRowKind.NOT_ARRIVED)
+    return { start: row.person.planStartAt, end: row.person.planEndAt };
+  return { start: row.shift.planStartAt, end: row.shift.planEndAt };
+}
+
+function zoneOf(row: OperationsRow): string | null {
+  return row.kind === OperationsRowKind.SHIFT ? row.shift.zoneName : row.person.zoneName;
+}
+
+function presenceOf(row: OperationsRow): string | null {
+  return row.kind === OperationsRowKind.SHIFT ? row.shift.presenceSince : null;
+}
+
+function needsAttention(row: OperationsRow): boolean {
+  if (row.kind === OperationsRowKind.NOT_ARRIVED) return false;
+  return row.shift.needsClarification || row.shift.autoCloseReason === 'NO_CHECKLIST';
+}
+
+function StateCell({ row }: { readonly row: OperationsRow }) {
+  if (row.kind === OperationsRowKind.NOT_ARRIVED)
+    return (
+      // Orange like a needed replacement on the schedule: a gap to cover, not a stopped line.
+      <StatusPill tone="caution" className="gap-1">
+        <UserXIcon aria-hidden="true" />
+        {o.notArrived}
+      </StatusPill>
+    );
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <StatusPill tone={STATE_TONE[row.shift.state]}>{all.states[row.shift.state]}</StatusPill>
+      {row.shift.resumeState && <Muted>→ {all.states[row.shift.resumeState]}</Muted>}
+    </div>
+  );
+}
+
+function SinceCell({ row }: { readonly row: OperationsRow }) {
+  if (row.kind === OperationsRowKind.NOT_ARRIVED)
+    return (
+      <span className="tabular-nums">
+        {formatTime(row.person.planStartAt)} <Muted>({formatDuration(row.lateMinutes)})</Muted>
+      </span>
+    );
+  return (
+    <span className="tabular-nums">
+      {formatTime(row.shift.stateSince)} <Muted>({`${row.shift.stateMinutes} ${o.minutes}`})</Muted>
+    </span>
+  );
+}
+
+function ShiftFlags({ row }: { readonly row: ActiveShiftView }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {row.needsClarification && <StatusPill tone="danger">{o.needsClarification}</StatusPill>}
+      {row.autoCloseReason && (
+        <StatusPill tone="warning">
+          {all.shift.estimatedEndLabel}
+          <InfoTip text={all.shift.estimatedClosure} />
+        </StatusPill>
+      )}
+      {row.autoCloseReason === 'NO_CHECKLIST' && (
+        <StatusPill tone="danger">{o.closedNoChecklist}</StatusPill>
+      )}
+      {!row.zoneAccepted && row.state === 'PREPARATION' && (
+        <StatusPill tone="warning">{o.zoneNotAccepted}</StatusPill>
       )}
     </div>
   );
