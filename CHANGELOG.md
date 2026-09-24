@@ -1,3 +1,17 @@
+## [1.31.2](https://github.com/leonidkuznetsov18/vakhta/compare/v1.31.1...v1.31.2) (2026-09-24)
+
+### Bug fixes
+
+* **i18n:** label a missing scheduled employee as not on shift ([d7f49bc](https://github.com/leonidkuznetsov18/vakhta/commit/d7f49bc9a12e4b65d8a13a7c657c3ae141eb780b))
+* **requests:** accept only offered swap counterparts ([06b7cf2](https://github.com/leonidkuznetsov18/vakhta/commit/06b7cf2023afa9a076546faf7278b94936aba1a3))
+* **requests:** enforce the bonus appeal rule in the service ([fc4fc4f](https://github.com/leonidkuznetsov18/vakhta/commit/fc4fc4f9c09a1aa3799a3340cac8aaf646e341f1))
+* **requests:** keep custom hours, segments and breaks when a request is approved ([5ae9695](https://github.com/leonidkuznetsov18/vakhta/commit/5ae969573550e943c12d688b230b2001e100914b))
+* **shift:** accept only directory reasons for downtime and emergency exit ([1d47ddf](https://github.com/leonidkuznetsov18/vakhta/commit/1d47ddfd40870434291240ad040a40e9fe167554))
+* **shift:** make AUTO_CLOSE system-only and limit bot shift callbacks ([e7927b9](https://github.com/leonidkuznetsov18/vakhta/commit/e7927b92d2bf8af1d73d848ab29f790bc7e10ac8))
+* **shift:** refuse an idempotency key reused for another command ([68e71c7](https://github.com/leonidkuznetsov18/vakhta/commit/68e71c7ae7366358cf6f189e5ad0f2cc24a4b06c))
+* **shift:** resume into downtime only after an interrupted downtime ([7417707](https://github.com/leonidkuznetsov18/vakhta/commit/74177073e5b6ff7de618a4eeddd9890a01dd2641))
+* **telegram:** stop blocked employees from finishing pending bot flows ([42f782b](https://github.com/leonidkuznetsov18/vakhta/commit/42f782b4d143d354f11dae09c1715989b3225a28))
+
 ## [1.31.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.31.0...v1.31.1) (2026-09-24)
 
 ### Bug fixes
