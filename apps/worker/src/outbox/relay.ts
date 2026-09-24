@@ -35,8 +35,8 @@ export interface OutboxSender {
 export class TelegramSender implements OutboxSender {
   constructor(private readonly api: Api) {}
 
-  static fromToken(token: string): TelegramSender {
-    return new TelegramSender(new Api(token));
+  static fromToken(token: string, apiRoot?: string): TelegramSender {
+    return new TelegramSender(new Api(token, apiRoot ? { apiRoot } : {}));
   }
 
   async send(chatId: number, payload: NotificationPayload): Promise<{ messageId: number | null }> {

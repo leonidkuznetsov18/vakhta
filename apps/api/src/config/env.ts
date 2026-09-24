@@ -45,6 +45,8 @@ export const EnvSchema = z.object({
   SUPPORT_TENANT_SLUG: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   TELEGRAM_BOT_USERNAME: z.string().default('VakhtaBot'),
+  /** Bot API origin; only a local test double replaces https://api.telegram.org. */
+  TELEGRAM_API_ROOT: z.preprocess(emptyToUndefined, z.string().url().optional()),
   /** Public address of the user guide; the bot offers it under /help and the Help button. */
   USER_GUIDE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   /** webhook для продакшену (потрібна публічна адреса), polling для розробки. За замовчуванням залежить від NODE_ENV. */

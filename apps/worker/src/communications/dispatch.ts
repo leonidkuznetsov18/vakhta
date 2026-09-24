@@ -44,8 +44,10 @@ export interface CommunicationFileReader {
 }
 export class TelegramCommunicationTransport implements CommunicationTransport {
   constructor(private readonly api: Api) {}
-  static fromToken(token: string) {
-    return new TelegramCommunicationTransport(new Api(token, { timeoutSeconds: 45 }));
+  static fromToken(token: string, apiRoot?: string) {
+    return new TelegramCommunicationTransport(
+      new Api(token, { timeoutSeconds: 45, ...(apiRoot ? { apiRoot } : {}) }),
+    );
   }
   async send(chatId: number, part: Parameters<CommunicationTransport['send']>[1]) {
     if (part.file) {

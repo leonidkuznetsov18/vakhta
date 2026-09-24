@@ -159,6 +159,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     const token = tenant.botToken;
     if (!token) throw new Error('tenant has no bot token');
     const bot = createBot(token, {
+      apiRoot: this.config.get('TELEGRAM_API_ROOT', { infer: true }),
       employees: this.employees,
       activation: this.activation,
       schedule: this.schedule,

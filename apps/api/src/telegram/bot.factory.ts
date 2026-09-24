@@ -176,6 +176,8 @@ export interface BotDeps {
   readonly slots?: OpenSlotsService | undefined;
   /** Personal calendar feed (#19); absent in narrow test harnesses. */
   readonly feed?: FeedService | undefined;
+  /** Bot API origin override for a local test double; unset in production. */
+  readonly apiRoot?: string;
   /** Public API origin used to build feed links. */
   readonly feedBaseUrl?: string | undefined;
   readonly attendance: AttendanceService;
@@ -276,7 +278,7 @@ function homeOrShift(
  * the employee by Telegram user_id again, and pending confirmations live in Redis.
  */
 export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
-  const bot = new Bot<BotContext>(token);
+  const bot = new Bot<BotContext>(token, deps.apiRoot ? { client: { apiRoot: deps.apiRoot } } : {});
 
   const runInContext = deps.runInContext;
   if (runInContext) bot.use((_ctx, next) => runInContext(() => next()));

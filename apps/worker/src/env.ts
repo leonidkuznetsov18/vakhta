@@ -31,6 +31,8 @@ export const WorkerEnvSchema = z.object({
   REGISTRY_REFRESH_SECONDS: z.coerce.number().int().min(2).default(15),
   /** Без токена релей аутбоксу вимкнений: рядки чекають у PENDING. */
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  /** Bot API origin; only a local test double replaces https://api.telegram.org. */
+  TELEGRAM_API_ROOT: z.preprocess(emptyToUndefined, z.string().url().optional()),
   COMMUNICATIONS_WEB_URL: z.string().url().default('https://panel.vakhta.xyz'),
   OUTBOX_POLL_MS: z.coerce.number().int().min(200).default(1000),
   OUTBOX_BATCH: z.coerce.number().int().min(1).max(200).default(20),

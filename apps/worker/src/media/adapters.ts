@@ -2,12 +2,19 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Api } from 'grammy';
 import type { FileFetcher, MediaStore } from './process.js';
 
-/** Завантаження файлу з Telegram: getFile → https://api.telegram.org/file/bot<token>/<path>. */
+const TELEGRAM_API_ROOT = 'https://api.telegram.org';
+
+/** Завантаження файлу з Telegram: getFile → <apiRoot>/file/bot<token>/<path>. */
 export class TelegramFileFetcher implements FileFetcher {
   private readonly api: Api;
+  private readonly apiRoot: string;
 
-  constructor(private readonly token: string) {
-    this.api = new Api(token, { timeoutSeconds: 60 });
+  constructor(
+    private readonly token: string,
+    apiRoot: string = TELEGRAM_API_ROOT,
+  ) {
+    this.apiRoot = apiRoot;
+    this.api = new Api(token, { timeoutSeconds: 60, apiRoot });
   }
 
   async fetch(
@@ -20,7 +27,7 @@ export class TelegramFileFetcher implements FileFetcher {
     const file = await this.api.getFile(fileId);
     signal?.throwIfAborted();
     if (!file.file_path) throw new Error('Telegram did not return a file path');
-    const res = await fetch(`https://api.telegram.org/file/bot${this.token}/${file.file_path}`, {
+    const res = await fetch(`${this.apiRoot}/file/bot${this.token}/${file.file_path}`, {
       signal: signal ?? null,
     });
     if (!res.ok) throw new Error(`File download failed: HTTP ${res.status}`);

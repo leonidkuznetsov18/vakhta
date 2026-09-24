@@ -99,7 +99,7 @@ function mediaDependenciesFor(
 ): MediaDependencies | null {
   if (!mediaStore || !tenant.botToken) return null;
   return {
-    fetcher: new TelegramFileFetcher(tenant.botToken),
+    fetcher: new TelegramFileFetcher(tenant.botToken, env.TELEGRAM_API_ROOT),
     store: {
       async put(...args: Parameters<S3MediaStore['put']>) {
         const stored = await tenantSource.source.withActiveTenant(tenant.id, async () => {
@@ -210,9 +210,10 @@ interface TenantRelay {
 
 /** Outbox relay (ADR-8) and communication dispatch of one tenant, one pass at a time. */
 function createRelay(tenant: TenantRuntimeConfig, db: Database, log: Logger): TenantRelay {
-  const sender = tenant.botToken ? TelegramSender.fromToken(tenant.botToken) : null;
+  const apiRoot = env.TELEGRAM_API_ROOT;
+  const sender = tenant.botToken ? TelegramSender.fromToken(tenant.botToken, apiRoot) : null;
   const transport = tenant.botToken
-    ? TelegramCommunicationTransport.fromToken(tenant.botToken)
+    ? TelegramCommunicationTransport.fromToken(tenant.botToken, apiRoot)
     : null;
   if (!sender) log.warn('no bot token: outbox relay disabled, rows stay PENDING');
   const webUrl = communicationsWebUrl(tenant);
