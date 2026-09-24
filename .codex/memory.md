@@ -99,3 +99,12 @@ owner appends after merging work; parallel agents return proposed entries instea
   - As in When I Work, an edit changes new assignments only: used templates are versioned
     (ADR-0017).
 - See `specs/013-unit-shift-templates/` and `docs/engineering/features/unit-shift-templates.md`.
+
+## 2026-09-24 — Equipment maintenance module (draft spec)
+
+- Owner request; writer: Claude; baseline `b4453be`. New tenant module `MAINTENANCE`: machine register,
+  PDF manuals, versioned calendar plans, work orders, calendar, 7/3/1-day Telegram reminders to the
+  responsible mechanic, emergency repair beside incidents. This is the separate decision that brings
+  "equipment" into scope. See `specs/014-equipment-maintenance/` and ADR-0018 (proposed).
+- Unresolved (owner): D-1 meter hours now or later, D-2 `CHIEF_MECHANIC` role, D-3 who accepts
+  planned maintenance. Pilot machines: NEWTOP FB100S, FB158S, FB118Dt (`pilot-equipment.md`).
