@@ -1,3 +1,9 @@
+## [1.31.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.31.0...v1.31.1) (2026-09-24)
+
+### Bug fixes
+
+* **shift:** refuse a bot close without the exit QR scan ([42cd65e](https://github.com/leonidkuznetsov18/vakhta/commit/42cd65ece7cd6f6e214be3e024ecf1d211915aa4))
+
 ## [1.31.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.30.1...v1.31.0) (2026-09-24)
 
 ### Features
