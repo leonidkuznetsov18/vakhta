@@ -475,13 +475,14 @@ export function DataTable<T extends object>({
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="icon-sm"
           id={id}
           aria-label={label}
-          className="sr-only focus-visible:not-sr-only focus-visible:absolute"
+          // Invisible until focused: the keyboard entry point stays, the accordion arrow goes.
+          className="opacity-0 focus-visible:opacity-100"
           onClick={() => onRowClick(row)}
         >
-          {t.details}
+          <ChevronRightIcon aria-hidden="true" className="size-4" />
         </Button>
       );
     return (
