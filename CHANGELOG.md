@@ -1,3 +1,31 @@
+## [1.32.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.31.2...v1.32.0) (2026-09-24)
+
+### Features
+
+* **admin-web:** add equipment maintenance design prototype ([3066143](https://github.com/leonidkuznetsov18/vakhta/commit/3066143ab72a1b0704fef8f1de8c412dbe0ba7bf))
+* **admin-web:** add the equipment maintenance section ([5fe0d35](https://github.com/leonidkuznetsov18/vakhta/commit/5fe0d35d554ee83db7571e91622c6e28cca1a0e7))
+* **bot:** let mechanics work maintenance and repairs in Telegram ([60a0dc8](https://github.com/leonidkuznetsov18/vakhta/commit/60a0dc8af9de2f3b0e46425289a54f091b743d02))
+* **maintenance:** add equipment maintenance domain, schema and API ([e69e294](https://github.com/leonidkuznetsov18/vakhta/commit/e69e294f54f0449b1efa6ef4edbeecd5a54aef60))
+* **maintenance:** close the remaining spec 014 gaps ([e91eea3](https://github.com/leonidkuznetsov18/vakhta/commit/e91eea37f9601e956681769e24451dfaa62355d7))
+* **worker:** run maintenance reminders and emergency escalations ([7e89561](https://github.com/leonidkuznetsov18/vakhta/commit/7e8956193a1df77aa95db3847d8fdd58d5bdc1d7))
+
+### Bug fixes
+
+* **maintenance:** align the panel and bot with the spec 014 prototypes ([818ea33](https://github.com/leonidkuznetsov18/vakhta/commit/818ea33a7c5d90568f31dbcaa4edd6fa2a7d4cf2))
+
+### Documentation
+
+* **maintenance:** document equipment maintenance and accept ADR-0018 ([4963136](https://github.com/leonidkuznetsov18/vakhta/commit/4963136f9fdb4be457a6a62c8480551b4399a649))
+* **maintenance:** record the completed spec 014 scope and verification ([9dcf75b](https://github.com/leonidkuznetsov18/vakhta/commit/9dcf75bd8c856c0f525109ae163a5d91584384e8))
+* **spec:** record pilot NEWTOP machines and draft maintenance plans ([d043009](https://github.com/leonidkuznetsov18/vakhta/commit/d043009ddfb8633e128ff83ffc2a1ad955905e95))
+* **spec:** record second manual search for pilot machines ([56e2bae](https://github.com/leonidkuznetsov18/vakhta/commit/56e2bae48402093420125ad4df562cf3931d4eee))
+* **spec:** specify equipment maintenance module ([676a375](https://github.com/leonidkuznetsov18/vakhta/commit/676a37514f2980a22f1a9c6049371537b1b9c8af))
+* **spec:** verify pilot NEWTOP machines against manufacturer sources ([5acc808](https://github.com/leonidkuznetsov18/vakhta/commit/5acc8088d973b6e03939135b140304a8c930526d))
+
+### Styles
+
+* **maintenance:** format the bot screen and catalog edits ([f4c3633](https://github.com/leonidkuznetsov18/vakhta/commit/f4c36331c7f115081fe5934f238aecc51b0d7118))
+
 ## [1.31.2](https://github.com/leonidkuznetsov18/vakhta/compare/v1.31.1...v1.31.2) (2026-09-24)
 
 ### Bug fixes
