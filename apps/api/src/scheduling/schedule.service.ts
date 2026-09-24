@@ -607,9 +607,7 @@ export class ScheduleService {
     expectedRevision?: number,
     restriction: ReadonlySet<string> | null = null,
   ): Promise<ScheduleVersionDetail> {
-    const current = (await this.loadAssignments(versionId, tx))
-      .filter((x) => x.a.status === 'PLANNED')
-      .map((x) => this.toAssignmentInput(x));
+    const current = (await this.plannedAssignmentsWithin(tx, versionId)).map((x) => x.input);
     if (
       current.some((x) => x.employeeId === item.employeeId && x.businessDate === item.businessDate)
     )
@@ -626,6 +624,20 @@ export class ScheduleService {
       expectedRevision,
       restriction,
     );
+  }
+
+  /**
+   * The planned assignments of a version as complete inputs: custom hours, zone segments and breaks
+   * included, so a caller that rewrites the month (an approved request) keeps what it did not touch.
+   */
+  async plannedAssignmentsWithin(
+    tx: Transaction,
+    versionId: string,
+  ): Promise<readonly { readonly id: string; readonly input: AssignmentInput }[]> {
+    const rows = await this.loadAssignments(versionId, tx);
+    return rows
+      .filter((x) => x.a.status === 'PLANNED')
+      .map((x) => ({ id: x.a.id, input: this.toAssignmentInput(x) }));
   }
 
   private toAssignmentInput(x: AssignmentWithTemplate): AssignmentInput {

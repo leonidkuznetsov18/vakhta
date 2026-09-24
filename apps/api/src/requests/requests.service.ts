@@ -972,16 +972,8 @@ export class RequestsService {
     for (const group of [...groups.values()].sort((a, b) =>
       a.publishedId.localeCompare(b.publishedId),
     )) {
-      const current = await tx
-        .select()
-        .from(shiftAssignments)
-        .where(
-          and(
-            eq(shiftAssignments.scheduleVersionId, group.publishedId),
-            eq(shiftAssignments.status, 'PLANNED'),
-          ),
-        );
-      let items: AssignmentInput[] = current.map(toInput);
+      const current = await this.schedule.plannedAssignmentsWithin(tx, group.publishedId);
+      let items: AssignmentInput[] = current.map((a) => a.input);
       switch (row.type) {
         case 'VACATION':
         case 'DAY_OFF':
@@ -998,7 +990,7 @@ export class RequestsService {
           );
           break;
         case 'CANNOT_ATTEND': {
-          const target = current.find((a) => a.id === row.assignmentId);
+          const target = current.find((a) => a.id === row.assignmentId)?.input;
           items = items.filter(
             (i) =>
               !(
@@ -1010,8 +1002,8 @@ export class RequestsService {
           break;
         }
         case 'SWAP': {
-          const mine = current.find((a) => a.id === row.assignmentId);
-          const theirs = current.find((a) => a.id === row.payload.counterpartAssignmentId);
+          const mine = current.find((a) => a.id === row.assignmentId)?.input;
+          const theirs = current.find((a) => a.id === row.payload.counterpartAssignmentId)?.input;
           if (!mine || !theirs)
             throw new DomainError('ASSIGNMENT_NOT_FOUND', 409, 'Одна зі змін уже змінилась');
           items = items.map((i) => {
@@ -1164,18 +1156,6 @@ export class RequestsService {
       .limit(1);
     return row ? String((row.response as { requestId: string }).requestId) : null;
   }
-}
-
-function toInput(a: AssignmentRow): AssignmentInput {
-  return {
-    employeeId: a.employeeId,
-    templateId: a.templateId,
-    businessDate: a.businessDate,
-    kind: a.kind,
-    ...(a.positionId ? { positionId: a.positionId } : {}),
-    ...(a.teamId ? { teamId: a.teamId } : {}),
-    ...(a.zoneId ? { zoneId: a.zoneId } : {}),
-  };
 }
 
 /** Пропозиція в payload зберігається в ISO-формі команди; домен працює з epoch у CorrectionsService. */

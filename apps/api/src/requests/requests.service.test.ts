@@ -1,5 +1,6 @@
 import { afterEach, vi, afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  assignmentBreaks,
   backgroundTasks,
   activityIntervals,
   domainEvents,
@@ -221,7 +222,16 @@ describe('requests: маршрути, рішення, нова версія гр
         items: [
           { employeeId: ivanov, templateId: dayTpl, businessDate: `${month}-05`, kind: 'REGULAR' },
           { employeeId: ivanov, templateId: dayTpl, businessDate: `${month}-07`, kind: 'REGULAR' },
-          { employeeId: petrova, templateId: dayTpl, businessDate: `${month}-09`, kind: 'REGULAR' },
+          // Custom hours and a planned break: a request approval must carry them into the new version.
+          {
+            employeeId: petrova,
+            templateId: dayTpl,
+            businessDate: `${month}-09`,
+            kind: 'REGULAR',
+            customStart: '09:00',
+            customEnd: '19:00',
+            breaks: [{ localStart: '13:00', localEnd: '13:30', reliefEmployeeId: null }],
+          },
         ],
       },
       HEAD,
@@ -287,6 +297,15 @@ describe('requests: маршрути, рішення, нова версія гр
     expect(planned.filter((a) => a.employeeId === ivanov).map((a) => a.businessDate)).toEqual([
       `${month()}-07`,
     ]);
+    // The rest of the month is carried over whole, not rebuilt from template hours.
+    const untouched = planned.find((a) => a.employeeId === petrova);
+    if (!untouched) throw new Error('Petrova lost her shift');
+    expect(untouched).toMatchObject({ customStart: '09:00', customEnd: '19:00' });
+    const breaks = await testDb.db
+      .select()
+      .from(assignmentBreaks)
+      .where(eq(assignmentBreaks.assignmentId, untouched.id));
+    expect(breaks).toMatchObject([{ localStart: '13:00', localEnd: '13:30' }]);
     const notices = await testDb.db
       .select()
       .from(notificationOutbox)
