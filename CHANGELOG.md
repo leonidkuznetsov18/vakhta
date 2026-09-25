@@ -1,3 +1,21 @@
+## [1.35.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.34.0...v1.35.0) (2026-09-25)
+
+### Features
+
+* **admin-web:** group the machine card's actions and open a plan from its materials ([b5f8df3](https://github.com/leonidkuznetsov18/vakhta/commit/b5f8df341b90995cd405f709cc0dfff763ca2af9))
+* **admin-web:** icon buttons with tooltips on every action and named links in text ([a9a4e28](https://github.com/leonidkuznetsov18/vakhta/commit/a9a4e284eb58e83b431f6e660e1ce5c85431546e))
+* **admin-web:** keep the calendar tab open and open a plan from a forecast ([b48ca9f](https://github.com/leonidkuznetsov18/vakhta/commit/b48ca9f9b1466b3ee95928b89878cace2e9ac1b8))
+* **admin-web:** render notes and comments with paragraphs, lists and links ([f8cce6a](https://github.com/leonidkuznetsov18/vakhta/commit/f8cce6aeb398fae0abbfc83ea2ba70219dad7dd5))
+* **maintenance:** let the master answer for the materials from the panel ([8755286](https://github.com/leonidkuznetsov18/vakhta/commit/87552864eb1d6d9ce80d43efc2032a71719e692e))
+
+### Bug fixes
+
+* **admin-web:** open the plan editor as one sheet and fit the document dialog ([132b826](https://github.com/leonidkuznetsov18/vakhta/commit/132b826f6ac512082ef23fb2d148f321c6e26875))
+
+### Tests
+
+* **api:** keep the unscheduled-arrival test meaningful at every hour ([71c4d0f](https://github.com/leonidkuznetsov18/vakhta/commit/71c4d0f7e7804b1c13deb3b766b1944f8c6a79e5))
+
 ## [1.34.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.33.0...v1.34.0) (2026-09-25)
 
 ### Features
