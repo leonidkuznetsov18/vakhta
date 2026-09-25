@@ -89,9 +89,11 @@ function DescriptionFields({
   readonly onKind: (value: string) => void;
 }) {
   const t = maintenanceMessages();
+  // The kind takes a full row: three columns squeeze the optional labels out of the dialog.
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2">
       <SelectField
+        className="sm:col-span-2"
         label={t.documents.kind}
         value={draft.kind}
         onChange={onKind}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { EquipmentDetail, PlanDetail } from '@vakhta/contracts';
 import { PlanState, type PlanState as State } from '@vakhta/domain';
@@ -35,6 +35,7 @@ import {
   SchedulePreviewAlert,
   SourceBlock,
 } from './plan-blocks';
+import { RichText } from '@/shared/ui/rich-text';
 
 interface EditorProps {
   readonly machine: EquipmentDetail;
@@ -177,17 +178,23 @@ function usePlanForm({
   onClose,
 }: EditorProps & { readonly detail: PlanDetail | null }) {
   const t = maintenanceMessages();
-  const [draft, setDraft] = useState(() => initialDraft(machine, detail));
-  const [baseline, setBaseline] = useState(draft);
+  // Until the first edit the draft mirrors the loaded plan, so the sheet can mount before it arrives.
+  const loaded = initialDraft(machine, detail);
+  const [edited, setEdited] = useState<PlanDraft | null>(null);
+  const [saved, setSaved] = useState<PlanDraft | null>(null);
+  const draft = edited ?? loaded;
+  const baseline = saved ?? loaded;
+  const setDraft = (change: (current: PlanDraft) => PlanDraft) =>
+    setEdited((current) => change(current ?? loaded));
   const [planId, setPlanId] = useState(detail?.id ?? null);
   const [issues, setIssues] = useState<readonly PublishIssue[]>([]);
   const { confirm, dialog } = useConfirm();
   const { save, publish, changeState } = usePlanMutations({
     machine,
     planId,
-    onSaved: (id, saved) => {
+    onSaved: (id, draftSaved) => {
       setPlanId(id);
-      setBaseline(saved);
+      setSaved(draftSaved);
     },
   });
   const failure = failureOf([save, publish, changeState]);
@@ -262,9 +269,11 @@ function PlanFooter({ model, state }: { readonly model: PlanFormModel; readonly 
   );
 }
 
-function PlanForm(props: EditorProps & { readonly detail: PlanDetail | null }) {
+function PlanForm(
+  props: EditorProps & { readonly detail: PlanDetail | null; readonly loading?: ReactNode },
+) {
   const t = maintenanceMessages();
-  const { machine, detail, canManage, onClose } = props;
+  const { machine, detail, canManage, onClose, loading } = props;
   const model = usePlanForm(props);
   const mechanics = useQuery(maintenanceQueries.mechanics());
   const policy = useQuery(maintenanceQueries.policy());
@@ -278,12 +287,13 @@ function PlanForm(props: EditorProps & { readonly detail: PlanDetail | null }) {
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={<PlanTitle machine={machine} detail={detail} />}
       description={t.planForm.hint}
-      footer={readOnly ? undefined : <PlanFooter model={model} state={state} />}
+      footer={readOnly || loading ? undefined : <PlanFooter model={model} state={state} />}
     >
+      {loading}
       <IssueList issues={model.issues} />
       <Feedback error={model.error} />
       {detail?.stateReason ? (
-        <p className="text-sm text-muted-foreground">{detail.stateReason}</p>
+        <RichText text={detail.stateReason} className="text-sm text-muted-foreground" />
       ) : null}
       <SourceBlock {...blockProps} machine={machine} />
       <IntervalBlock {...blockProps} />
@@ -300,24 +310,21 @@ function PlanForm(props: EditorProps & { readonly detail: PlanDetail | null }) {
   );
 }
 
-/** The maintenance plan editor (spec 014, US3): draft, publication and pause/archive. */
+/**
+ * The maintenance plan editor (spec 014, US3): draft, publication and pause/archive. One sheet
+ * opens once and keeps its place while the plan loads, so the panel never slides in twice.
+ */
 export function PlanEditor(props: EditorProps) {
-  const t = maintenanceMessages();
   const query = useQuery({
     ...maintenanceQueries.plan(props.planId ?? ''),
     enabled: props.planId !== null,
   });
   if (props.planId === null) return <PlanForm {...props} detail={null} />;
-  if (!query.data)
-    return (
-      <DetailSheet
-        open
-        size="wide"
-        onOpenChange={(open) => (open ? undefined : props.onClose())}
-        title={t.plans.title}
-      >
-        <QueryFeedback query={query} />
-      </DetailSheet>
-    );
-  return <PlanForm key={query.data.id} {...props} detail={query.data} />;
+  return (
+    <PlanForm
+      {...props}
+      detail={query.data ?? null}
+      loading={query.data ? undefined : <QueryFeedback query={query} />}
+    />
+  );
 }

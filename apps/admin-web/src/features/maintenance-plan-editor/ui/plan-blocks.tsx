@@ -452,7 +452,7 @@ function MaterialDetails({
 }) {
   const t = maintenanceMessages();
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-[9rem_minmax(0,1fr)_5.5rem_4.5rem_9rem]">
+    <div className="grid grid-cols-2 gap-2 md:grid-cols-[8rem_minmax(0,1fr)_5.5rem_7rem_10rem]">
       <MaterialCell label={t.planForm.materialKind}>
         <CodeSelect
           value={row.kind}
@@ -521,7 +521,7 @@ function MaterialRow({
         <MaterialCell label={t.planForm.materialName} className="flex-1">
           <Textarea
             rows={1}
-            className="min-h-9 resize-y"
+            className="min-h-9 resize-y max-md:min-h-11"
             value={row.name}
             disabled={readOnly}
             onChange={(event) => onChange({ ...row, name: event.target.value })}
