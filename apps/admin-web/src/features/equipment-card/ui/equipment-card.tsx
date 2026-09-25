@@ -26,7 +26,7 @@ import { DetailSheet } from '@/components/app/detail-sheet';
 import { Feedback } from '@/components/app/feedback';
 import { StatusPill } from '@/components/app/page';
 import { QueryFeedback } from '@/components/app/query-feedback';
-import { SheetActions, type SheetAction } from '@/components/app/sheet-actions';
+import { SheetActionGroups, type SheetAction } from '@/components/app/sheet-actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { describeError } from '@/errors';
 import { useNow } from '@/lib/clock';
@@ -37,6 +37,7 @@ import { DocumentsTab, HistoryTab, MaterialsTab, PlansTab } from './card-tabs';
 import { EmergencyDialog } from './emergency-dialog';
 import { ReleaseDialog } from './release-dialog';
 import { StateDialog } from './state-dialog';
+import { RichText } from '@/shared/ui/rich-text';
 
 function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
@@ -109,7 +110,7 @@ function Passport({ machine }: { readonly machine: EquipmentDetail }) {
       <Field label={t.card.zone}>{orNotSet(machine.zoneName)}</Field>
       <div className="col-span-2 md:col-span-3">
         <Field label={t.card.notes}>
-          <span className="whitespace-pre-line">{orNotSet(machine.notes)}</span>
+          {machine.notes ? <RichText text={machine.notes} /> : orNotSet(machine.notes)}
         </Field>
       </div>
     </div>
@@ -170,7 +171,7 @@ function responderActions(
   ];
 }
 
-/** Every action of the card in one row: response first, then state, archive and editing. */
+/** The card's actions in three groups: the passport and state, the response, then archiving. */
 function CardFooter({
   machine,
   canManage,
@@ -210,8 +211,15 @@ function CardFooter({
   };
   // A repair in progress owns the state until the machine is released (FR-005).
   const locked = machine.openStop !== null;
-  const manage: SheetAction[] = canManage
+  const edit: SheetAction[] = canManage
     ? [
+        {
+          key: 'edit',
+          label: t.card.edit,
+          tooltip: t.card.actionHints.edit,
+          icon: PencilIcon,
+          onSelect: onEdit,
+        },
         {
           key: 'state',
           label: t.card.correctState,
@@ -221,6 +229,10 @@ function CardFooter({
           disabled: locked,
           onSelect: () => onDialog(CardDialog.STATE),
         },
+      ]
+    : [];
+  const retire: SheetAction[] = canManage
+    ? [
         {
           key: 'archive',
           label: t.card.archive,
@@ -230,20 +242,13 @@ function CardFooter({
           pending: archive.isPending,
           onSelect: () => void askArchive(),
         },
-        {
-          key: 'edit',
-          label: t.card.edit,
-          tooltip: t.card.actionHints.edit,
-          icon: PencilIcon,
-          onSelect: onEdit,
-        },
       ]
     : [];
   const respond = canRespond ? responderActions(machine, onDialog) : [];
   return (
-    <div className="flex w-full flex-wrap items-center justify-end gap-2">
+    <div className="flex w-full flex-wrap items-center justify-end gap-x-5 gap-y-2">
       <Feedback error={archive.error ? describeError(archive.error) : null} />
-      <SheetActions actions={[...respond, ...manage]} />
+      <SheetActionGroups groups={[edit, respond, retire]} />
       {dialog}
     </div>
   );
@@ -308,7 +313,10 @@ function CardBody({
           />
         </TabsContent>
         <TabsContent value="materials" className="mt-3">
-          <MaterialsTab machine={machine} />
+          <MaterialsTab
+            machine={machine}
+            onOpenPlan={(planId) => onOpenPlan({ equipment: machine, planId })}
+          />
         </TabsContent>
         <TabsContent value="history" className="mt-3">
           <HistoryTab history={machine.history} />

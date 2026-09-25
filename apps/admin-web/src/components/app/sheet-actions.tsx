@@ -45,3 +45,21 @@ export function SheetActions({ actions }: { readonly actions: readonly SheetActi
     />
   ));
 }
+
+/**
+ * Actions in groups that read as one thing each (edit, respond, retire): a wider gap separates the
+ * groups, an empty group leaves no gap behind.
+ */
+export function SheetActionGroups({
+  groups,
+}: {
+  readonly groups: readonly (readonly SheetAction[])[];
+}) {
+  return groups
+    .filter((group) => group.length > 0)
+    .map((group) => (
+      <div key={group[0]?.key} className="flex flex-wrap items-center gap-2">
+        <SheetActions actions={group} />
+      </div>
+    ));
+}

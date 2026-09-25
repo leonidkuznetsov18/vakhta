@@ -37,6 +37,7 @@ import { notifySuccess } from '@/lib/toast';
 import { formatSize, lacksManual } from '../model/documents';
 import { CopyPlanDialog } from './copy-plan-dialog';
 import { UploadDialog } from './upload-dialog';
+import { RichText } from '@/shared/ui/rich-text';
 
 /**
  * Opens a document in a new tab. A link document goes straight to its address; a stored file
@@ -232,7 +233,14 @@ const MATERIAL_COLUMNS: readonly Column<EquipmentMaterialView>[] = [
 ];
 
 /** What the published plans need, so the stock question is answered from one list. */
-export function MaterialsTab({ machine }: { readonly machine: EquipmentDetail }) {
+/** Materials belong to their plans: a row opens the plan that lists it (owner request 2026-09-25). */
+export function MaterialsTab({
+  machine,
+  onOpenPlan,
+}: {
+  readonly machine: EquipmentDetail;
+  readonly onOpenPlan: (planId: string) => void;
+}) {
   const t = maintenanceMessages();
   return (
     <div className="flex flex-col gap-3">
@@ -243,6 +251,7 @@ export function MaterialsTab({ machine }: { readonly machine: EquipmentDetail })
         rowKey={(row) => `${row.planId}:${row.name}:${row.article ?? ''}`}
         empty={t.card.materialsTab.empty}
         primaryKey="item"
+        onRowClick={(row) => onOpenPlan(row.planId)}
       />
     </div>
   );
@@ -383,9 +392,7 @@ export function Timeline({
             {item.actor ? <span className="text-muted-foreground"> · {item.actor}</span> : null}
           </div>
           {item.comment ? (
-            <div className="text-xs whitespace-pre-line break-words text-muted-foreground">
-              {item.comment}
-            </div>
+            <RichText text={item.comment} className="text-xs text-muted-foreground" />
           ) : null}
         </li>
       ))}
