@@ -21,7 +21,7 @@ import { useNavigation } from '@/navigation';
 import { MaintenanceTab, hasRole, parseTab } from '../model/tabs';
 
 interface PlanTarget {
-  readonly equipment: EquipmentDetail;
+  readonly equipmentId: string;
   readonly planId: string | null;
 }
 
@@ -36,12 +36,14 @@ function SectionTabs({
   canManage,
   onNavigate,
   onCreate,
+  onOpenPlan,
 }: {
   readonly tab: MaintenanceTab;
   readonly openId: string | null;
   readonly canManage: boolean;
   readonly onNavigate: (tab: MaintenanceTab, id?: string) => void;
   readonly onCreate: () => void;
+  readonly onOpenPlan: (target: PlanTarget) => void;
 }) {
   const t = maintenanceMessages();
   const summary = useQuery(maintenanceQueries.summary());
@@ -75,7 +77,8 @@ function SectionTabs({
       <TabsContent value={MaintenanceTab.CALENDAR} className="mt-4">
         <MaintenanceCalendar
           today={todayIso()}
-          onOpenWork={(workId) => onNavigate(MaintenanceTab.WORK, workId)}
+          onOpenWork={(workId) => onNavigate(MaintenanceTab.CALENDAR, workId)}
+          onOpenPlan={onOpenPlan}
         />
       </TabsContent>
       <TabsContent value={MaintenanceTab.WORK} className="mt-4">
@@ -88,7 +91,7 @@ function SectionTabs({
   );
 }
 
-/** The record the address opens: a machine card on the equipment tab, a work order on the work tab. */
+/** The record the address opens: a machine card on the equipment tab, a work order on the work and calendar tabs. */
 function OpenRecord({
   tab,
   openId,
@@ -114,21 +117,22 @@ function OpenRecord({
         {...access}
         onClose={() => onNavigate(MaintenanceTab.EQUIPMENT)}
         onEdit={onEdit}
-        onOpenPlan={onOpenPlan}
+        onOpenPlan={(target) =>
+          onOpenPlan({ equipmentId: target.equipment.id, planId: target.planId })
+        }
         onOpenEquipment={(equipmentId) => onNavigate(MaintenanceTab.EQUIPMENT, equipmentId)}
       />
     );
-  if (tab === MaintenanceTab.WORK)
-    return (
-      <WorkSheet
-        key={openId}
-        workId={openId}
-        {...access}
-        onClose={() => onNavigate(MaintenanceTab.WORK)}
-        onRelease={onRelease}
-      />
-    );
-  return null;
+  // The calendar keeps its tab while a work order is open (owner request 2026-09-25).
+  return (
+    <WorkSheet
+      key={openId}
+      workId={openId}
+      {...access}
+      onClose={() => onNavigate(tab)}
+      onRelease={onRelease}
+    />
+  );
 }
 
 /**
@@ -162,6 +166,7 @@ export function MaintenancePage({
         canManage={access.canManage}
         onNavigate={onNavigate}
         onCreate={() => setForm({ kind: 'create' })}
+        onOpenPlan={setPlan}
       />
       {/* One panel at a time: the plan editor takes the card's place instead of stacking on it. */}
       {id && !plan ? (
@@ -187,8 +192,8 @@ export function MaintenancePage({
       ) : null}
       {plan ? (
         <PlanEditor
-          key={plan.planId ?? `new:${plan.equipment.id}`}
-          machine={plan.equipment}
+          key={plan.planId ?? `new:${plan.equipmentId}`}
+          equipmentId={plan.equipmentId}
           planId={plan.planId}
           canManage={access.canManage}
           onClose={() => setPlan(null)}

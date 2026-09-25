@@ -70,6 +70,12 @@ const TONE_ICON: Readonly<Record<EntryTone, ReactNode>> = {
   FORECAST: <CircleDashedIcon className="size-3 shrink-0" aria-hidden="true" />,
 };
 
+/** The plan a forecast entry opens. */
+export interface PlanLink {
+  readonly equipmentId: string;
+  readonly planId: string;
+}
+
 function legendText(tone: EntryTone): string {
   const t = maintenanceMessages().calendar;
   const labels: Readonly<Record<EntryTone, string>> = {
@@ -86,35 +92,45 @@ function legendText(tone: EntryTone): string {
 function EntryChip({
   entry,
   onOpenWork,
+  onOpenPlan,
 }: {
   readonly entry: CalendarEntry;
   readonly onOpenWork: (id: string) => void;
+  readonly onOpenPlan: (target: PlanLink) => void;
 }) {
   const base = cn(
     'flex w-full items-center gap-1 truncate rounded border px-1.5 py-0.5 text-left text-xs',
     TONE_CLASS[entry.tone],
   );
+  const clickable = cn(
+    base,
+    'hover:ring-2 hover:ring-sky-400 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+  );
+  // A forecast is not work yet: it opens the plan that will create it (owner request 2026-09-25).
   if (entry.kind === EntryKind.FORECAST)
     return (
-      <span className={base}>
+      <button
+        type="button"
+        className={clickable}
+        aria-label={`${legendText(entry.tone)}: ${entry.forecast.equipmentCode} ${entry.forecast.title}`}
+        onClick={() =>
+          onOpenPlan({ equipmentId: entry.forecast.equipmentId, planId: entry.forecast.planId })
+        }
+      >
         {TONE_ICON[entry.tone]}
-        <span className="sr-only">{legendText(entry.tone)}:</span>
         <span className="shrink-0 font-medium whitespace-nowrap">
           {entry.forecast.equipmentCode}
         </span>
         <span data-title="" className="truncate">
           {entry.forecast.title}
         </span>
-      </span>
+      </button>
     );
   const item = entry.item;
   return (
     <button
       type="button"
-      className={cn(
-        base,
-        'hover:ring-2 hover:ring-sky-400 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-      )}
+      className={clickable}
       aria-label={`${legendText(entry.tone)}: ${item.equipmentCode} ${item.title}, ${item.assignee}`}
       onClick={() => onOpenWork(item.workOrderId)}
     >
@@ -135,6 +151,7 @@ function CalendarGrid({
   tall,
   byDay,
   onOpenWork,
+  onOpenPlan,
 }: {
   readonly days: readonly GridDay[];
   readonly today: string;
@@ -142,6 +159,7 @@ function CalendarGrid({
   readonly tall: boolean;
   readonly byDay: DayMap;
   readonly onOpenWork: (id: string) => void;
+  readonly onOpenPlan: (target: PlanLink) => void;
 }) {
   const t = maintenanceMessages().calendar;
   return (
@@ -178,7 +196,12 @@ function CalendarGrid({
             {tall ? formatDayMonth(day.date) : Number(day.date.slice(8))}
           </span>
           {(byDay.get(day.date) ?? []).map((entry) => (
-            <EntryChip key={entry.key} entry={entry} onOpenWork={onOpenWork} />
+            <EntryChip
+              key={entry.key}
+              entry={entry}
+              onOpenWork={onOpenWork}
+              onOpenPlan={onOpenPlan}
+            />
           ))}
         </div>
       ))}
@@ -191,11 +214,13 @@ function CalendarAgenda({
   byDay,
   empty,
   onOpenWork,
+  onOpenPlan,
 }: {
   readonly days: readonly GridDay[];
   readonly byDay: DayMap;
   readonly empty: string;
   readonly onOpenWork: (id: string) => void;
+  readonly onOpenPlan: (target: PlanLink) => void;
 }) {
   const shown = days.filter((day) => day.inMonth && byDay.has(day.date));
   if (!shown.length) return <p className="text-sm text-muted-foreground">{empty}</p>;
@@ -207,7 +232,12 @@ function CalendarAgenda({
             {formatNearDate(day.date)}
           </span>
           {(byDay.get(day.date) ?? []).map((entry) => (
-            <EntryChip key={entry.key} entry={entry} onOpenWork={onOpenWork} />
+            <EntryChip
+              key={entry.key}
+              entry={entry}
+              onOpenWork={onOpenWork}
+              onOpenPlan={onOpenPlan}
+            />
           ))}
         </li>
       ))}
@@ -479,10 +509,12 @@ function useCalendarFilters(today: string): [Filters, (filters: Filters) => void
 export function MaintenanceCalendar({
   today,
   onOpenWork,
+  onOpenPlan,
 }: {
   /** The panel's local day; the site's own day comes with the calendar data. */
   readonly today: string;
   readonly onOpenWork: (id: string) => void;
+  readonly onOpenPlan: (target: PlanLink) => void;
 }) {
   const t = maintenanceMessages().calendar;
   const [filters, setFilters] = useCalendarFilters(today);
@@ -500,7 +532,13 @@ export function MaintenanceCalendar({
         <CalendarToolbar filters={filters} onChange={setFilters} />
         <QueryFeedback query={query} />
         {view && mobile ? (
-          <CalendarAgenda days={days} byDay={byDay} empty={empty} onOpenWork={onOpenWork} />
+          <CalendarAgenda
+            days={days}
+            byDay={byDay}
+            empty={empty}
+            onOpenWork={onOpenWork}
+            onOpenPlan={onOpenPlan}
+          />
         ) : null}
         {view && !mobile ? (
           <CalendarGrid
@@ -509,6 +547,7 @@ export function MaintenanceCalendar({
             tall={filters.view === CalendarView.WEEK}
             byDay={byDay}
             onOpenWork={onOpenWork}
+            onOpenPlan={onOpenPlan}
           />
         ) : null}
         <Legend byDay={byDay} />

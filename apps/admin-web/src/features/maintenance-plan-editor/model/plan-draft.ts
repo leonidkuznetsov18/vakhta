@@ -76,8 +76,8 @@ export function newMaterial(): MaterialDraft {
 }
 
 /** A new plan starts from the machine: its mechanic and, when there is one, its manual (FR-020). */
-export function emptyPlan(machine: EquipmentDetail): PlanDraft {
-  const manual = machine.documents.at(0);
+export function emptyPlan(machine: EquipmentDetail | null): PlanDraft {
+  const manual = machine?.documents.at(0);
   return {
     title: '',
     intervalUnit: IntervalUnit.MONTH,
@@ -90,7 +90,7 @@ export function emptyPlan(machine: EquipmentDetail): PlanDraft {
     sourceNote: '',
     estimatedMinutes: String(DEFAULT_MINUTES),
     requiresStop: true,
-    assigneeEmployeeId: machine.responsible.id,
+    assigneeEmployeeId: machine?.responsible.id ?? '',
     reminderDays: '',
     operations: [newOperation()],
     materials: [],

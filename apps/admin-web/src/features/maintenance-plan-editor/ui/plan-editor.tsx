@@ -1,4 +1,13 @@
 import { useState, type ReactNode } from 'react';
+import {
+  ArchiveIcon,
+  PauseIcon,
+  PencilIcon,
+  PlayIcon,
+  SaveIcon,
+  SendIcon,
+  type LucideIcon,
+} from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { EquipmentDetail, PlanDetail } from '@vakhta/contracts';
 import { PlanState, type PlanState as State } from '@vakhta/domain';
@@ -15,7 +24,6 @@ import { Feedback } from '@/components/app/feedback';
 import { StatusPill } from '@/components/app/page';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Alert, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { describeError } from '@/errors';
 import { notifySuccess } from '@/lib/toast';
 import {
@@ -35,16 +43,24 @@ import {
   SchedulePreviewAlert,
   SourceBlock,
 } from './plan-blocks';
+import { IconButton } from '@/shared/ui/icon-button';
 import { RichText } from '@/shared/ui/rich-text';
 
 interface EditorProps {
-  readonly machine: EquipmentDetail;
+  readonly equipmentId: string;
   readonly planId: string | null;
   readonly canManage: boolean;
   readonly onClose: () => void;
 }
 
-function initialDraft(machine: EquipmentDetail, detail: PlanDetail | null): PlanDraft {
+/** What the form works with once loaded; the machine and the plan arrive from their queries. */
+interface FormProps extends EditorProps {
+  readonly machine: EquipmentDetail | null;
+  readonly detail: PlanDetail | null;
+  readonly loading?: ReactNode;
+}
+
+function initialDraft(machine: EquipmentDetail | null, detail: PlanDetail | null): PlanDraft {
   const content = detail?.draft ?? detail?.active;
   return content ? draftFromContent(content) : emptyPlan(machine);
 }
@@ -55,6 +71,13 @@ const STATE_ACTIONS: Readonly<Record<State, readonly State[]>> = {
   ACTIVE: [PlanState.PAUSED, PlanState.ARCHIVED],
   PAUSED: [PlanState.ACTIVE, PlanState.ARCHIVED],
   ARCHIVED: [],
+};
+
+const STATE_ICONS: Readonly<Record<State, LucideIcon>> = {
+  DRAFT: PencilIcon,
+  ACTIVE: PlayIcon,
+  PAUSED: PauseIcon,
+  ARCHIVED: ArchiveIcon,
 };
 
 function stateLabel(state: State): string {
@@ -95,7 +118,7 @@ function IssueList({ issues }: { readonly issues: readonly PublishIssue[] }) {
 }
 
 function usePlanMutations(input: {
-  readonly machine: EquipmentDetail;
+  readonly equipmentId: string;
   readonly planId: string | null;
   readonly onSaved: (planId: string, draft: PlanDraft) => void;
 }) {
@@ -106,7 +129,7 @@ function usePlanMutations(input: {
     if (!checked.ok) throw new InvalidDraft(checked.fields);
     const saved = input.planId
       ? await maintenanceApi.savePlan(input.planId, checked.content)
-      : await maintenanceApi.createPlan(input.machine.id, checked.content);
+      : await maintenanceApi.createPlan(input.equipmentId, checked.content);
     input.onSaved(saved.id, draft);
     return saved.id;
   };
@@ -150,10 +173,11 @@ function PlanTitle({
   machine,
   detail,
 }: {
-  readonly machine: EquipmentDetail;
+  readonly machine: EquipmentDetail | null;
   readonly detail: PlanDetail | null;
 }) {
   const t = maintenanceMessages();
+  if (!machine) return t.plans.title;
   return (
     <>
       {format(t.planForm.createTitle, {
@@ -172,11 +196,7 @@ function PlanTitle({
 }
 
 /** The form's state and its named actions; the components below only render them. */
-function usePlanForm({
-  machine,
-  detail,
-  onClose,
-}: EditorProps & { readonly detail: PlanDetail | null }) {
+function usePlanForm({ machine, equipmentId, detail, onClose }: FormProps) {
   const t = maintenanceMessages();
   // Until the first edit the draft mirrors the loaded plan, so the sheet can mount before it arrives.
   const loaded = initialDraft(machine, detail);
@@ -190,7 +210,7 @@ function usePlanForm({
   const [issues, setIssues] = useState<readonly PublishIssue[]>([]);
   const { confirm, dialog } = useConfirm();
   const { save, publish, changeState } = usePlanMutations({
-    machine,
+    equipmentId,
     planId,
     onSaved: (id, draftSaved) => {
       setPlanId(id);
@@ -250,36 +270,71 @@ function PlanFooter({ model, state }: { readonly model: PlanFormModel; readonly 
   return (
     <div className="flex w-full flex-wrap justify-end gap-2">
       {STATE_ACTIONS[state].map((target) => (
-        <Button
+        <IconButton
           key={target}
+          icon={STATE_ICONS[target]}
+          label={stateLabel(target)}
+          tooltip={t.planForm.stateHints[target]}
           variant="ghost"
           pending={model.changingTo === target}
           onClick={() => model.changeState(target)}
-        >
-          {stateLabel(target)}
-        </Button>
+        />
       ))}
-      <Button variant="outline" disabled={!model.dirty} pending={model.saving} onClick={model.save}>
-        {t.planForm.saveDraft}
-      </Button>
-      <Button disabled={!model.canPublish} pending={model.publishing} onClick={model.publish}>
-        {t.planForm.publish}
-      </Button>
+      <IconButton
+        icon={SaveIcon}
+        label={t.planForm.saveDraft}
+        tooltip={t.planForm.saveDraftHint}
+        variant="outline"
+        disabled={!model.dirty}
+        pending={model.saving}
+        onClick={model.save}
+      />
+      <IconButton
+        icon={SendIcon}
+        label={t.planForm.publish}
+        tooltip={t.planForm.publishHint}
+        disabled={!model.canPublish}
+        pending={model.publishing}
+        onClick={model.publish}
+      />
     </div>
   );
 }
 
-function PlanForm(
-  props: EditorProps & { readonly detail: PlanDetail | null; readonly loading?: ReactNode },
-) {
+function PlanBlocks({
+  machine,
+  model,
+  readOnly,
+}: {
+  readonly machine: EquipmentDetail;
+  readonly model: PlanFormModel;
+  readonly readOnly: boolean;
+}) {
+  const mechanics = useQuery(maintenanceQueries.mechanics());
+  const policy = useQuery(maintenanceQueries.policy());
+  const blockProps = { draft: model.draft, patch: model.patch, invalid: model.invalid, readOnly };
+  return (
+    <>
+      <SourceBlock {...blockProps} machine={machine} />
+      <IntervalBlock {...blockProps} />
+      <OperationsBlock {...blockProps} />
+      <MaterialsBlock {...blockProps} />
+      <AssigneeBlock {...blockProps} mechanics={mechanics.data ?? []} policy={policy.data} />
+      <SchedulePreviewAlert
+        draft={model.draft}
+        mechanics={mechanics.data ?? []}
+        policy={policy.data}
+      />
+    </>
+  );
+}
+
+function PlanForm(props: FormProps) {
   const t = maintenanceMessages();
   const { machine, detail, canManage, onClose, loading } = props;
   const model = usePlanForm(props);
-  const mechanics = useQuery(maintenanceQueries.mechanics());
-  const policy = useQuery(maintenanceQueries.policy());
   const state = detail?.state ?? PlanState.DRAFT;
   const readOnly = !canManage || state === PlanState.ARCHIVED;
-  const blockProps = { draft: model.draft, patch: model.patch, invalid: model.invalid, readOnly };
   return (
     <DetailSheet
       open
@@ -295,16 +350,9 @@ function PlanForm(
       {detail?.stateReason ? (
         <RichText text={detail.stateReason} className="text-sm text-muted-foreground" />
       ) : null}
-      <SourceBlock {...blockProps} machine={machine} />
-      <IntervalBlock {...blockProps} />
-      <OperationsBlock {...blockProps} />
-      <MaterialsBlock {...blockProps} />
-      <AssigneeBlock {...blockProps} mechanics={mechanics.data ?? []} policy={policy.data} />
-      <SchedulePreviewAlert
-        draft={model.draft}
-        mechanics={mechanics.data ?? []}
-        policy={policy.data}
-      />
+      {machine && !loading ? (
+        <PlanBlocks machine={machine} model={model} readOnly={readOnly} />
+      ) : null}
       {model.dialog}
     </DetailSheet>
   );
@@ -315,16 +363,17 @@ function PlanForm(
  * opens once and keeps its place while the plan loads, so the panel never slides in twice.
  */
 export function PlanEditor(props: EditorProps) {
-  const query = useQuery({
+  const machineQuery = useQuery(maintenanceQueries.equipmentDetail(props.equipmentId));
+  const planQuery = useQuery({
     ...maintenanceQueries.plan(props.planId ?? ''),
     enabled: props.planId !== null,
   });
-  if (props.planId === null) return <PlanForm {...props} detail={null} />;
-  return (
-    <PlanForm
-      {...props}
-      detail={query.data ?? null}
-      loading={query.data ? undefined : <QueryFeedback query={query} />}
-    />
-  );
+  const machine = machineQuery.data ?? null;
+  const detail = planQuery.data ?? null;
+  const pending = machine === null || (props.planId !== null && detail === null);
+  // One loader for the whole first read: the machine first, then the plan.
+  const loading = pending ? (
+    <QueryFeedback query={machine ? planQuery : machineQuery} />
+  ) : undefined;
+  return <PlanForm {...props} machine={machine} detail={detail} loading={loading} />;
 }

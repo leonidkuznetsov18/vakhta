@@ -83,12 +83,15 @@ it('opens one sheet and keeps it while the plan loads instead of mounting a seco
       deliver = resolve;
     }),
   );
+  vi.spyOn(maintenanceApi, 'equipmentDetail').mockResolvedValue(MACHINE);
   vi.spyOn(maintenanceApi, 'mechanics').mockResolvedValue([]);
   vi.spyOn(maintenanceApi, 'policy').mockResolvedValue({
     reminderOffsets: [7, 3, 1],
     reminderTime: '09:00',
   });
-  render(<PlanEditor machine={MACHINE} planId={PLAN.id} canManage onClose={() => undefined} />);
+  render(
+    <PlanEditor equipmentId={MACHINE.id} planId={PLAN.id} canManage onClose={() => undefined} />,
+  );
   const loading = await screen.findByRole('dialog');
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
 
