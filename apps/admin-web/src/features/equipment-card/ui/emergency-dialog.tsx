@@ -1,3 +1,4 @@
+import { SirenIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { EquipmentDetail } from '@vakhta/contracts';
@@ -6,7 +7,7 @@ import { maintenanceApi, maintenanceKeys, maintenanceMessages } from '@/entities
 import { AddDialog } from '@/components/app/add-dialog';
 import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
-import { Button } from '@/components/ui/button';
+import { DialogActions } from '@/components/app/dialog-actions';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -95,19 +96,17 @@ export function EmergencyDialog({
           checked={safety}
           onChange={setSafety}
         />
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.form.cancel}
-          </Button>
-          <Button
-            type="submit"
-            variant="destructive"
-            pending={create.isPending}
-            disabled={!description.trim()}
-          >
-            {t.emergencyForm.create}
-          </Button>
-        </div>
+        <DialogActions
+          cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+          action={{
+            label: t.emergencyForm.create,
+            tooltip: t.card.actionHints.createEmergency,
+            icon: SirenIcon,
+            variant: 'destructive',
+            pending: create.isPending,
+            disabled: !description.trim(),
+          }}
+        />
       </form>
     </AddDialog>
   );

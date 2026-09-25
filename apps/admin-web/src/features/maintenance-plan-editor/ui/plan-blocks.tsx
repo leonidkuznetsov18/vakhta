@@ -22,7 +22,6 @@ import { DateField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -379,14 +378,15 @@ export function OperationsBlock({ draft, patch, invalid, readOnly }: BlockProps)
         ))}
       </ol>
       {readOnly ? null : (
-        <Button
+        <IconButton
+          icon={PlusIcon}
+          label={t.planForm.addOperation}
+          tooltip={t.planForm.addOperationHint}
           variant="outline"
           size="sm"
           className="self-start"
           onClick={() => patch({ operations: [...rows, newOperation()] })}
-        >
-          <PlusIcon /> {t.planForm.addOperation}
-        </Button>
+        />
       )}
     </FormBlock>
   );
@@ -561,14 +561,15 @@ export function MaterialsBlock({ draft, patch, readOnly }: BlockProps) {
         ))}
       </ul>
       {readOnly ? null : (
-        <Button
+        <IconButton
+          icon={PlusIcon}
+          label={t.planForm.addMaterial}
+          tooltip={t.planForm.addMaterialHint}
           variant="outline"
           size="sm"
           className="self-start"
           onClick={() => patch({ materials: [...rows, newMaterial()] })}
-        >
-          <PlusIcon /> {t.planForm.addMaterial}
-        </Button>
+        />
       )}
     </FormBlock>
   );

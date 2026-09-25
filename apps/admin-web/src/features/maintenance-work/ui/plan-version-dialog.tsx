@@ -14,7 +14,8 @@ import { AddDialog } from '@/components/app/add-dialog';
 import { Feedback } from '@/components/app/feedback';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { DialogActions } from '@/components/app/dialog-actions';
+import { IconButton } from '@/shared/ui/icon-button';
 import { describeError } from '@/errors';
 import { notifySuccess } from '@/lib/toast';
 
@@ -141,14 +142,17 @@ function ApplyDialog({
       <Feedback error={apply.error ? describeError(apply.error) : null} />
       <QueryFeedback query={diff} />
       {diff.data ? <DiffBody diff={diff.data} /> : null}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onClose}>
-          {t.form.cancel}
-        </Button>
-        <Button disabled={!diff.data} pending={apply.isPending} onClick={() => apply.mutate()}>
-          {format(t.workCard.applyVersion, revisions)}
-        </Button>
-      </div>
+      <DialogActions
+        cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+        action={{
+          label: format(t.workCard.applyVersion, revisions),
+          tooltip: t.workCard.actionHints.applyVersion,
+          icon: GitCompareArrowsIcon,
+          pending: apply.isPending,
+          disabled: !diff.data,
+          onClick: () => apply.mutate(),
+        }}
+      />
     </AddDialog>
   );
 }
@@ -175,14 +179,15 @@ export function NewerPlanAlert({
       <AlertTitle>{format(applicable ? t.newerPlan : t.newerPlanStarted, revisions)}</AlertTitle>
       {applicable ? (
         <AlertDescription>
-          <Button
+          <IconButton
+            icon={GitCompareArrowsIcon}
+            label={t.compareApply}
+            tooltip={t.compareApplyHint}
             size="sm"
             variant="outline"
             className="mt-1 text-foreground"
             onClick={() => setOpen(true)}
-          >
-            {t.compareApply}
-          </Button>
+          />
           {open ? <ApplyDialog work={work} onClose={() => setOpen(false)} /> : null}
         </AlertDescription>
       ) : null}

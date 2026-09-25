@@ -1,3 +1,4 @@
+import { CalendarIcon, UserRoundIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { WorkDetail } from '@vakhta/contracts';
@@ -11,7 +12,7 @@ import { AddDialog } from '@/components/app/add-dialog';
 import { DateField } from '@/components/app/date-picker';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
-import { Button } from '@/components/ui/button';
+import { DialogActions } from '@/components/app/dialog-actions';
 import { Textarea } from '@/components/ui/textarea';
 import { describeError } from '@/errors';
 import { notifySuccess } from '@/lib/toast';
@@ -89,14 +90,16 @@ export function ReplanDialog({
         <Feedback error={replan.error ? describeError(replan.error) : null} />
         <DateField label={t.workCard.replanTitle} value={plannedOn} onChange={setPlannedOn} />
         <ReasonField value={reason} onChange={setReason} />
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.form.cancel}
-          </Button>
-          <Button type="submit" pending={replan.isPending} disabled={unchanged || !reason.trim()}>
-            {t.workCard.replan}
-          </Button>
-        </div>
+        <DialogActions
+          cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+          action={{
+            label: t.workCard.replan,
+            tooltip: t.workCard.actionHints.replan,
+            icon: CalendarIcon,
+            pending: replan.isPending,
+            disabled: unchanged || !reason.trim(),
+          }}
+        />
       </form>
     </AddDialog>
   );
@@ -150,18 +153,16 @@ export function ReassignDialog({
           required
         />
         <ReasonField value={reason} onChange={setReason} />
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.form.cancel}
-          </Button>
-          <Button
-            type="submit"
-            pending={reassign.isPending}
-            disabled={!employeeId || !reason.trim()}
-          >
-            {t.workCard.reassign}
-          </Button>
-        </div>
+        <DialogActions
+          cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+          action={{
+            label: t.workCard.reassign,
+            tooltip: t.workCard.actionHints.reassign,
+            icon: UserRoundIcon,
+            pending: reassign.isPending,
+            disabled: !employeeId || !reason.trim(),
+          }}
+        />
       </form>
     </AddDialog>
   );

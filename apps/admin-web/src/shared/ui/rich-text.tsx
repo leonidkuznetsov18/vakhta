@@ -1,7 +1,8 @@
 import { Fragment, type ReactNode } from 'react';
 import { cn } from 'cn';
 
-const URL_PATTERN = /https?:\/\/[^\s<>«»"']+/g;
+/** A named link `[label](https://…)` or a bare address. */
+const LINK_PATTERN = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|https?:\/\/[^\s<>«»"']+/g;
 /** Punctuation that closes a sentence around a link is not part of the address. */
 const TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/;
 const BULLET = /^[-•*]\s+/;
@@ -26,11 +27,16 @@ function keyed<T extends { readonly text: string }>(items: readonly T[]): (T & {
 export function linkSegments(line: string): Segment[] {
   const segments: Segment[] = [];
   let last = 0;
-  for (const match of line.matchAll(URL_PATTERN)) {
-    const raw = match[0];
+  for (const match of line.matchAll(LINK_PATTERN)) {
+    const [raw, label, named] = match;
+    if (match.index > last) segments.push({ text: line.slice(last, match.index) });
+    if (label && named) {
+      segments.push({ text: label, href: named });
+      last = match.index + raw.length;
+      continue;
+    }
     const trailing = raw.match(TRAILING_PUNCTUATION)?.[0] ?? '';
     const href = raw.slice(0, raw.length - trailing.length);
-    if (match.index > last) segments.push({ text: line.slice(last, match.index) });
     segments.push({ text: href, href });
     last = match.index + href.length;
   }
@@ -46,7 +52,7 @@ function Line({ line }: { readonly line: string }) {
         href={segment.href}
         target="_blank"
         rel="noreferrer noopener"
-        className="break-all text-blue-700 underline underline-offset-2 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+        className="font-medium text-blue-700 underline-offset-2 hover:underline dark:text-blue-400 [overflow-wrap:anywhere]"
       >
         {segment.text}
       </a>
@@ -113,7 +119,8 @@ function Paragraph({ block }: { readonly block: string }) {
 
 /**
  * Free text as people wrote it: blank lines separate paragraphs, single breaks stay, lines that
- * start with "-" or "1." become lists and web addresses open in a new tab (owner rule, 2026-09-25).
+ * start with "-" or "1." become lists, and `[label](https://…)` or a bare address opens in a new tab
+ * (owner rule, 2026-09-25).
  */
 export function RichText({
   text,

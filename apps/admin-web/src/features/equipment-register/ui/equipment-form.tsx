@@ -1,3 +1,4 @@
+import { PlusIcon, SaveIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EQUIPMENT_CRITICALITIES } from '@vakhta/domain';
@@ -18,7 +19,7 @@ import { DateField } from '@/components/app/date-picker';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField, type Option } from '@/components/app/fields';
-import { Button } from '@/components/ui/button';
+import { DialogActions } from '@/components/app/dialog-actions';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -274,18 +275,17 @@ export function EquipmentForm({
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={editing ? t.form.editTitle : t.form.createTitle}
       footer={
-        <div className="flex w-full flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
-            {t.form.cancel}
-          </Button>
-          <Button
-            pending={save.isPending}
-            disabled={editing !== null && sameDraft(draft, baseline)}
-            onClick={submit}
-          >
-            {editing ? t.form.save : t.form.create}
-          </Button>
-        </div>
+        <DialogActions
+          cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+          action={{
+            label: editing ? t.form.save : t.form.create,
+            tooltip: editing ? t.form.saveHint : t.equipment.addHint,
+            icon: editing ? SaveIcon : PlusIcon,
+            pending: save.isPending,
+            disabled: editing !== null && sameDraft(draft, baseline),
+            onClick: submit,
+          }}
+        />
       }
     >
       <Feedback error={save.error ? describeError(save.error) : null} />

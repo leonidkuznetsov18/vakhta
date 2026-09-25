@@ -16,7 +16,7 @@ import {
 import { DataTable, type Column } from '@/components/app/data-table';
 import { SelectField } from '@/components/app/fields';
 import { Section, Toolbar } from '@/components/app/page';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/shared/ui/icon-button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useOrg } from '@/lib/org';
 
@@ -166,6 +166,19 @@ function searchText(row: EquipmentRow): string {
     .join(' ');
 }
 
+function AddEquipmentButton({ onCreate }: { readonly onCreate: () => void }) {
+  const t = maintenanceMessages();
+  return (
+    <IconButton
+      icon={PlusIcon}
+      label={t.equipment.add}
+      tooltip={t.equipment.addHint}
+      size="sm"
+      onClick={onCreate}
+    />
+  );
+}
+
 /** The machine register (spec 014, US1): filters, the table or cards, and the add action. */
 export function EquipmentRegister({
   canManage,
@@ -202,13 +215,7 @@ export function EquipmentRegister({
     <Section
       title={t.equipment.title}
       hint={t.equipment.hint}
-      actions={
-        canManage ? (
-          <Button size="sm" onClick={onCreate}>
-            <PlusIcon /> {t.equipment.add}
-          </Button>
-        ) : null
-      }
+      actions={canManage ? <AddEquipmentButton onCreate={onCreate} /> : null}
     >
       <Toolbar>
         <SelectField

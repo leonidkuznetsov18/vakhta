@@ -4,7 +4,12 @@ import { RichText, linkSegments } from './rich-text';
 
 afterEach(cleanup);
 
-it('keeps the sentence punctuation out of a link', () => {
+it('names a link from its brackets and keeps the sentence punctuation out of a bare one', () => {
+  expect(linkSegments('Див. [каталог](https://example.com/a.pdf), с. 20.')).toEqual([
+    { text: 'Див. ' },
+    { text: 'каталог', href: 'https://example.com/a.pdf' },
+    { text: ', с. 20.' },
+  ]);
   expect(linkSegments('Каталог (https://example.com/a.pdf): див. с. 20.')).toEqual([
     { text: 'Каталог (' },
     { text: 'https://example.com/a.pdf', href: 'https://example.com/a.pdf' },

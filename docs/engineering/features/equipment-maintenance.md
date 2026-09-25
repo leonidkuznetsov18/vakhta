@@ -189,6 +189,27 @@ refreshes on focus, so a bot action can take a few seconds to show.
   database (`maintenance_version_immutable`), so the plans' source notes keep their single-paragraph
   text until someone edits and publishes a plan; the link inside them is clickable anyway.
 
+### Third production review (2026-09-25, later)
+
+- Every action in the module is an `IconButton` with a tooltip: the card's document and plan actions,
+  the editor's add and footer actions, the queue's repair link, the register's add, and every dialog
+  footer through `components/app/dialog-actions.tsx` (cancel on the left, the change on the right).
+- Free text accepts named links `[label](https://…)`; links are blue, underlined on hover, and open
+  in a new tab. Bare addresses still work.
+- The calendar keeps its tab while a work order is open (`#/maintenance/calendar/<id>` renders the
+  work sheet), and a forecast chip opens the plan that will create it; `CalendarForecast` carries
+  `equipmentId` for that. The plan editor now takes `equipmentId` and loads the machine itself (the
+  card's cache answers at once), so any surface can open a plan by ids.
+- Materials readiness from the panel (owner decision 2026-09-25): `POST work/:id/readiness`
+  (`WorkReadinessCommand`, roles `MAINTENANCE_RESPONDERS`) answers "all set" or "missing" with a
+  note for planned work that has not started, through the same `answerReadiness` core as the bot,
+  with a `WEB` event and the master's notice on a shortage. The work sheet shows the readiness pill
+  next to the materials and, for managers and responders, the two actions under the list.
+- A wall-clock flaky test: `shift.service.test.ts` "an unscheduled arrival takes only the shifts of
+  the employee's own unit" failed whenever CI ran at 08:xx or 20:xx Kyiv, because the site-wide
+  template started at the same hour as the foreign one; the foreign template now starts at half
+  past when a site template already starts at that hour.
+
 ## Verification
 
 2026-09-24, branch `claude/busy-mayer-6jmcpk`, local PostgreSQL 16, Redis 7.

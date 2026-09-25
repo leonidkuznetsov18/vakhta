@@ -1,3 +1,4 @@
+import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DocumentLinkInput, DocumentUploadQuery } from '@vakhta/contracts';
@@ -8,7 +9,7 @@ import { AddDialog } from '@/components/app/add-dialog';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { Button } from '@/components/ui/button';
+import { DialogActions } from '@/components/app/dialog-actions';
 import { Input } from '@/components/ui/input';
 import { describeError } from '@/errors';
 import { notifySuccess } from '@/lib/toast';
@@ -261,18 +262,16 @@ export function UploadDialog({
             setDraft((current) => ({ ...current, mode }));
           }}
         />
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.form.cancel}
-          </Button>
-          <Button
-            type="submit"
-            pending={upload.isPending || addLink.isPending}
-            disabled={!canSubmit(draft)}
-          >
-            {t.documents.add}
-          </Button>
-        </div>
+        <DialogActions
+          cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+          action={{
+            label: t.documents.add,
+            tooltip: t.documents.addHint,
+            icon: PlusIcon,
+            pending: upload.isPending || addLink.isPending,
+            disabled: !canSubmit(draft),
+          }}
+        />
       </form>
     </AddDialog>
   );

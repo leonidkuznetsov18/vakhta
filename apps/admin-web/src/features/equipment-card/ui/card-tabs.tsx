@@ -7,6 +7,7 @@ import {
   LinkIcon,
   PlusIcon,
   TriangleAlertIcon,
+  Unlink2Icon,
 } from 'lucide-react';
 import type {
   EquipmentDetail,
@@ -30,7 +31,6 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { EmptyState, StatusPill } from '@/components/app/page';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { describeError } from '@/errors';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { notifySuccess } from '@/lib/toast';
@@ -38,6 +38,7 @@ import { formatSize, lacksManual } from '../model/documents';
 import { CopyPlanDialog } from './copy-plan-dialog';
 import { UploadDialog } from './upload-dialog';
 import { RichText } from '@/shared/ui/rich-text';
+import { IconButton } from '@/shared/ui/icon-button';
 
 /**
  * Opens a document in a new tab. A link document goes straight to its address; a stored file
@@ -106,13 +107,24 @@ function DocumentItem({
         </span>
       </span>
       <span className="flex gap-2">
-        <Button size="sm" variant="outline" onClick={onOpen}>
-          <ExternalLinkIcon /> {t.documents.open}
-        </Button>
+        <IconButton
+          icon={ExternalLinkIcon}
+          label={t.documents.open}
+          tooltip={t.documents.openHint}
+          size="sm"
+          variant="outline"
+          onClick={onOpen}
+        />
         {canManage ? (
-          <Button size="sm" variant="ghost" pending={busy} onClick={onUnlink}>
-            {t.documents.unlink}
-          </Button>
+          <IconButton
+            icon={Unlink2Icon}
+            label={t.documents.unlink}
+            tooltip={t.documents.unlinkHint}
+            size="sm"
+            variant="ghost"
+            pending={busy}
+            onClick={onUnlink}
+          />
         ) : null}
       </span>
     </li>
@@ -165,9 +177,14 @@ export function DocumentsTab({
         </Alert>
       ) : null}
       {canManage ? (
-        <Button variant="outline" className="self-start" onClick={() => setUploading(true)}>
-          <PlusIcon /> {t.documents.add}
-        </Button>
+        <IconButton
+          icon={PlusIcon}
+          label={t.documents.add}
+          tooltip={t.documents.addHint}
+          variant="outline"
+          className="self-start"
+          onClick={() => setUploading(true)}
+        />
       ) : null}
       {uploading ? (
         <UploadDialog equipmentId={machine.id} onClose={() => setUploading(false)} />
@@ -322,9 +339,14 @@ export function PlansTab({
   return (
     <div className="flex flex-col gap-3">
       {canManage ? (
-        <Button size="sm" className="self-end" onClick={() => onOpenPlan(null)}>
-          <PlusIcon /> {t.plans.add}
-        </Button>
+        <IconButton
+          icon={PlusIcon}
+          label={t.plans.add}
+          tooltip={t.plans.addHint}
+          size="sm"
+          className="self-end"
+          onClick={() => onOpenPlan(null)}
+        />
       ) : null}
       <DataTable
         columns={PLAN_COLUMNS}

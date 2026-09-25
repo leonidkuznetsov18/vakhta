@@ -1,3 +1,4 @@
+import { ClipboardPenIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -18,7 +19,7 @@ import { AddDialog } from '@/components/app/add-dialog';
 import { DateField } from '@/components/app/date-picker';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
-import { Button } from '@/components/ui/button';
+import { DialogActions } from '@/components/app/dialog-actions';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -152,6 +153,27 @@ function useRecord(work: WorkDetail, onDone: () => void) {
   });
 }
 
+function RecordActions({
+  pending,
+  onClose,
+}: {
+  readonly pending: boolean;
+  readonly onClose: () => void;
+}) {
+  const t = maintenanceMessages();
+  return (
+    <DialogActions
+      cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+      action={{
+        label: t.workCard.recordSave,
+        tooltip: t.workCard.actionHints.record,
+        icon: ClipboardPenIcon,
+        pending,
+      }}
+    />
+  );
+}
+
 /** Planned work done on paper, entered for the mechanic; it then goes to review (AC-039). */
 export function RecordCompletionDialog({
   work,
@@ -221,14 +243,7 @@ export function RecordCompletionDialog({
           <AnswerRow key={operation.id} operation={operation} props={props} />
         ))}
         {work.materials.length ? <MaterialsField props={props} /> : null}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.form.cancel}
-          </Button>
-          <Button type="submit" pending={record.isPending}>
-            {t.workCard.recordSave}
-          </Button>
-        </div>
+        <RecordActions pending={record.isPending} onClose={onClose} />
       </form>
     </AddDialog>
   );

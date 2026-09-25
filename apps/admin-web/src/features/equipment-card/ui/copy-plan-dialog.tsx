@@ -1,3 +1,4 @@
+import { CopyIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PlanRow } from '@vakhta/contracts';
@@ -11,7 +12,7 @@ import {
 import { AddDialog } from '@/components/app/add-dialog';
 import { Feedback } from '@/components/app/feedback';
 import { SelectField } from '@/components/app/fields';
-import { Button } from '@/components/ui/button';
+import { DialogActions } from '@/components/app/dialog-actions';
 import { describeError } from '@/errors';
 import { notifySuccess } from '@/lib/toast';
 
@@ -70,14 +71,16 @@ export function CopyPlanDialog({
           placeholder={t.form.choose}
           required
         />
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.form.cancel}
-          </Button>
-          <Button type="submit" disabled={!target} pending={copy.isPending}>
-            {t.plans.copyAction}
-          </Button>
-        </div>
+        <DialogActions
+          cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+          action={{
+            label: t.plans.copyAction,
+            tooltip: t.plans.copyHint,
+            icon: CopyIcon,
+            pending: copy.isPending,
+            disabled: !target,
+          }}
+        />
       </form>
     </AddDialog>
   );

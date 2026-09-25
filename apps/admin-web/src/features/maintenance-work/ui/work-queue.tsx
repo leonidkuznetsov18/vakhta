@@ -15,7 +15,7 @@ import {
 import { DataTable, type Column } from '@/components/app/data-table';
 import { ROW_DANGER, Section, StatusPill } from '@/components/app/page';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/shared/ui/icon-button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNow } from '@/lib/clock';
 import { formatDuration, formatTime } from '@/lib/format';
@@ -181,9 +181,15 @@ function RepairBanner({ row, onOpen }: { readonly row: WorkRow; readonly onOpen:
         {row.acceptedAt
           ? format(t.emergencyBannerAccepted, { mechanic: row.assignee.fullName })
           : notAcceptedText(row, now)}
-        <Button size="sm" variant="outline" className="mt-2 w-fit" onClick={onOpen}>
-          {t.openRepair}
-        </Button>
+        <IconButton
+          icon={SirenIcon}
+          label={t.openRepair}
+          tooltip={t.openRepairHint}
+          size="sm"
+          variant="outline"
+          className="mt-2 w-fit"
+          onClick={onOpen}
+        />
       </AlertDescription>
     </Alert>
   );

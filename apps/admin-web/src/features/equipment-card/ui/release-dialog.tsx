@@ -1,3 +1,4 @@
+import { CircleCheckIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { RELEASE_MODES, ReleaseMode, type ReleaseMode as Mode } from '@vakhta/domain';
@@ -5,7 +6,7 @@ import { maintenanceApi, maintenanceKeys, maintenanceMessages } from '@/entities
 import { AddDialog } from '@/components/app/add-dialog';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
-import { Button } from '@/components/ui/button';
+import { DialogActions } from '@/components/app/dialog-actions';
 import { Textarea } from '@/components/ui/textarea';
 import { describeError } from '@/errors';
 import { notifySuccess } from '@/lib/toast';
@@ -68,19 +69,17 @@ export function ReleaseDialog({
             )}
           </FormField>
         ) : null}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.form.cancel}
-          </Button>
-          <Button
-            type="submit"
-            variant="success"
-            pending={release.isPending}
-            disabled={needsCondition}
-          >
-            {t.card.release}
-          </Button>
-        </div>
+        <DialogActions
+          cancel={{ label: t.form.cancel, tooltip: t.form.cancelHint, onSelect: onClose }}
+          action={{
+            label: t.card.release,
+            tooltip: t.card.actionHints.release,
+            icon: CircleCheckIcon,
+            variant: 'success',
+            pending: release.isPending,
+            disabled: needsCondition,
+          }}
+        />
       </form>
     </AddDialog>
   );

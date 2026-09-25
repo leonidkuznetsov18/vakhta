@@ -108,6 +108,10 @@ Finishing the repair does not start the machine: the master or the
 chief mechanic presses "Допустить к работе" (normal or restricted operation with a condition). The
 reporter is told the machine runs again.
 
+The master or chief mechanic can also answer for the materials from the work card in the panel:
+"Всё есть" or "Чего-то не хватает" with a note, as long as the work has not started. A shortage
+tells the unit master the same way as from the bot.
+
 ## Typical questions
 
 - _Why did the mechanic get no reminder?_ The plan is not published, the mechanic has no linked
