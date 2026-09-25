@@ -1,3 +1,9 @@
+## [1.35.2](https://github.com/leonidkuznetsov18/vakhta/compare/v1.35.1...v1.35.2) (2026-09-25)
+
+### Bug fixes
+
+* **admin-web:** remove a machine document with a trash icon button ([951bc35](https://github.com/leonidkuznetsov18/vakhta/commit/951bc3533a5268b879e1afa1fa72494a7edcb6fe))
+
 ## [1.35.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.35.0...v1.35.1) (2026-09-25)
 
 ### Bug fixes
