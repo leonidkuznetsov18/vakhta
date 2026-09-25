@@ -38,6 +38,27 @@ describe('maintenance schedule (spec 014 FR-024, FR-052)', () => {
     });
   });
 
+  it('keeps an early completion from landing the next cycle on or before the accepted due date', () => {
+    const weekly = {
+      intervalUnit: IntervalUnit.WEEK,
+      intervalCount: 1,
+      anchorMode: AnchorMode.FROM_COMPLETION,
+    };
+    // Due 2 October, done on 25 September: a week from completion would repeat 2 October.
+    expect(nextCycle(weekly, '2026-10-02', '2026-09-25')).toEqual({
+      nextDueOn: '2026-10-03',
+      missed: [],
+    });
+    expect(nextCycle(weekly, '2026-10-02', '2026-09-20')).toEqual({
+      nextDueOn: '2026-10-03',
+      missed: [],
+    });
+    expect(nextCycle(weekly, '2026-10-02', '2026-10-01')).toEqual({
+      nextDueOn: '2026-10-08',
+      missed: [],
+    });
+  });
+
   it('keeps a fixed grid and records the cycles a late one skipped', () => {
     const fixed = { ...monthly, anchorMode: AnchorMode.FIXED_CALENDAR };
     expect(nextCycle(fixed, '2026-01-31', '2026-02-10')).toEqual({

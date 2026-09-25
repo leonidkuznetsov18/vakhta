@@ -57,10 +57,11 @@ export interface NextCycle {
 export function nextCycle(rule: PlanRule, dueOn: string, performedOn: string): NextCycle {
   if (rule.intervalCount <= 0) throw new RangeError('Interval must be positive');
   if (rule.anchorMode === AnchorMode.FROM_COMPLETION) {
-    return {
-      nextDueOn: addInterval(performedOn, rule.intervalUnit, rule.intervalCount),
-      missed: [],
-    };
+    // Work done early counts from the performed date, but the next cycle always lands after the
+    // accepted one: one plan never holds two cycles on the same day (FR-024).
+    const fromPerformed = addInterval(performedOn, rule.intervalUnit, rule.intervalCount);
+    const earliest = addDays(dueOn, 1);
+    return { nextDueOn: fromPerformed > earliest ? fromPerformed : earliest, missed: [] };
   }
   const missed: string[] = [];
   for (let k = 1; k <= MAX_STEPS; k += 1) {
