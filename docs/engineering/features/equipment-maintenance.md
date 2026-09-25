@@ -134,8 +134,11 @@ The live test on the pilot tenant (module switched on in Control; three NEWTOP m
   keep a screen-reader-only "Подробности" button for the keyboard (owner rule).
 - `focusFirstField` skips `[role="tab"]`: the sheet's auto-focus used to land on the first tab trigger
   and Radix activated it, so every card opened on "Паспорт" instead of its default tab.
-- The plan editor replaces the machine card instead of stacking a second sheet on it (the double
-  overlay read as a flicker); closing the editor mounts the card again from the query cache.
+- The plan editor stacks on the machine card (2026-09-25, owner report of a page flash). Replacing
+  the card unmounted its sheet and mounted a new one in the same commit, so the backdrop and blur
+  faded in from zero and the page showed through; production DOM trace: overlay and content removed
+  and re-added at the same millisecond. The card now stays mounted (tab, scroll and focus kept), and
+  `SheetOverlay` of a sheet opened over an open one is transparent, so there is one backdrop.
 - Material rows of the plan editor are cards: the name is a wrapping textarea on its own line, the
   codes and numbers sit under it with visible labels.
 - Found but not fixed here: no panel UI marks a position as `performs_maintenance` (spec A-1); the

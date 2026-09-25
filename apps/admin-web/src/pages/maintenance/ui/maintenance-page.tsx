@@ -168,8 +168,8 @@ export function MaintenancePage({
         onCreate={() => setForm({ kind: 'create' })}
         onOpenPlan={setPlan}
       />
-      {/* One panel at a time: the plan editor takes the card's place instead of stacking on it. */}
-      {id && !plan ? (
+      {/* The plan editor stacks on the card: remounting the card re-ran its enter animation (a flash). */}
+      {id ? (
         <OpenRecord
           tab={tab}
           openId={id}

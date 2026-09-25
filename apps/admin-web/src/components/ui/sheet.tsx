@@ -33,6 +33,8 @@ function SheetOverlay({
       data-slot="sheet-overlay"
       className={cn(
         'fixed inset-0 z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+        // A sheet opened over an open sheet keeps the first backdrop instead of dimming twice.
+        '[[data-slot=sheet-overlay][data-state=open]~&]:bg-transparent [[data-slot=sheet-overlay][data-state=open]~&]:backdrop-filter-none',
         className,
       )}
       {...props}
