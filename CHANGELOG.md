@@ -1,3 +1,9 @@
+## [1.36.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.35.2...v1.36.0) (2026-09-25)
+
+### Features
+
+* **overview:** show machine breakdowns and maintenance on the overview ([4456c72](https://github.com/leonidkuznetsov18/vakhta/commit/4456c72b0cf8b0683b330ee4e1e1a2cbf30abf9f))
+
 ## [1.35.2](https://github.com/leonidkuznetsov18/vakhta/compare/v1.35.1...v1.35.2) (2026-09-25)
 
 ### Bug fixes
