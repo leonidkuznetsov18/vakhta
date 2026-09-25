@@ -380,3 +380,59 @@ stands. Questions 26–40 (groups, levels, approval, one-time payments, month, r
 Follow-up questions: Q23a source of output numbers; Q23b plan bonus vs the existing points
 bonus; Q23c monthly salary for anyone; Q24a weekend coefficient or double rate, extra-shift
 rate, seniority scale; Q25a the rates sheet without names.
+
+## Owner answers 2026-09-25: groups, levels, approval, one-time payments, rollout (questions 26–40)
+
+- **Q26, Q29, groups and exceptions (confirms A4, AC-014).** Terms are set generally per position
+  or node; a person differs only by an exception, usually a different qualification level. When a
+  group rate rises, exceptions stay, with the option to change them: the impact plan (AC-013)
+  lists every exception with a per-row choice «оставить / заменить».
+- **Q27–Q28, levels (resolves D4).** Levels exist inside a position, usually up to five, the same
+  scale across shops. A level rises on qualification growth or mastering a new process, possibly
+  after an attestation; the section head decides with the production head's approval. Change:
+  `position_levels` per position with at most five rows by default; AC-008's level change is
+  proposed by the node head and approved by the production head (two people); the reason field
+  offers «повышение квалификации», «освоение процесса», «аттестация».
+- **Q30, temporary terms.** Yes: interns are on a fixed pay during probation. Change: a temporary
+  `REPLACE` with an end date and `after_end = GROUP` is the standard shape; the card shows
+  «испытательный срок до <дата>» on such a row; the pool of interns (spec 014 Q20) links to it.
+- **Q31, approval of a personal change (resolves D2).** At least two people, depending on the
+  company's size. Change to A7: the approval route is a per-tenant setting with an ordered list
+  of approver roles (default: node head, then production head; ADMIN may approve alone only when
+  the route says so); a change stays `DRAFT` until the last approval; the route is shown on the
+  draft row.
+- **Q32, who sees amounts (changes AC-004 and FR-007).** Configurable per tenant: fields of the
+  section can be switched on and off per role. At the owner's plant the economist, the
+  accountant, the production head and the masters see amounts. Change: `payTerms` access is a
+  per-role setting (`NONE | NAMES | READ | WRITE`) editable in Administration, seeded with ADMIN
+  and HR WRITE, ACCOUNTANT and PRODUCTION_HEAD READ, SHIFT_MASTER READ for their subtree,
+  everyone else NAMES; the seed is data, not code. Open: whether «экономист» is the existing
+  ACCOUNTANT role or a new role (Q32a).
+- **Q33, the worker's own terms in the bot.** Yes, including the level (1/2/3…). Change: the bot
+  gets a read-only screen «Мои условия» with position, level, group name, the applied base and
+  allowances, and the month preview; this is a separate bot change (C4 unaffected).
+- **Q34, one-time payments.** Bonus (proposed on the shop floor, confirmed by the production
+  head), deduction or fine, overtime pay, and an allowance for an extra skill or section (a loader
+  who can drive a forklift gets a bonus). Change: `one_time_adjustments.kind` = `BONUS | DEDUCTION
+| OVERTIME | OTHER`; the forklift example is not one-time but a standing personal `ADD`
+  component `SKILL_SUPPLEMENT` with a reason; the adjustment route is master → production head.
+  Open: who proposes and who confirms a bonus, exactly (Q34a).
+- **Q35, attachments.** Required. Change: an adjustment and a personal term carry at least one
+  attachment (order, memo or photo) through the existing media storage; the card shows the file
+  name and a link; C7 still forbids logging presigned URLs.
+- **Q36–Q37, the month.** Paid twice a month (advance plus salary); the norm of hours comes from
+  the shift schedule; a mid-month hire or termination is prorated by worked time. Change: the
+  preview shows two segments (advance period, rest of the month) once the tenant's advance date
+  is set; `monthPreview` takes worked shifts for the past part and planned shifts for the rest.
+- **Q38–Q39, rollout.** Rates already exist as tables in Excel; pay accounting should start on
+  2026-10-01 with the data entered before that date. Change: the migration imports the Excel
+  tables (pay groups per position, level scales, personal deviations) with `valid_from =
+2026-10-01`; because every term is dated, the start date holds even if the screens ship later,
+  and shifts recorded from 2026-10-01 are recalculated against the imported terms when the module
+  arrives. The engineering deliveries (#117 PT-02 … PT-09) are not promised for 2026-10-01.
+- **Q40, pilot.** The administrator, HR and one master for a trial week. Change: the acceptance
+  issue PT-09 names them as the live QA group.
+
+Follow-up questions: Q32a whether the economist is the ACCOUNTANT role or a new one; Q34a who
+proposes and who confirms a bonus; Q36a the advance date and what the advance covers (fixed share
+or worked shifts to date).
