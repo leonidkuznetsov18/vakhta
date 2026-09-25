@@ -142,6 +142,31 @@ The live test on the pilot tenant (module switched on in Control; three NEWTOP m
   pilot has no `MECHANIC` position and its adjusters are `MACHINE_ADJUSTER*`, so the flag was set by
   SQL for `WORKSHOP_HEAD` to let the owner's mechanic be chosen. Tracked as a separate task.
 
+### End-to-end run after the review (2026-09-25)
+
+A local stack with a Telegram Bot API double (`TELEGRAM_API_ROOT`, webhook driven by a script) walked
+the whole journey: activation code in the bot, "Всё есть" / "Чего-то не хватает" on a planned work,
+start, operations with a required photo (stored in MinIO), materials "Как в плане", review in the
+panel (accept, return for rework and resubmit), an operator's breakdown report with the machine
+picked from the zone, the emergency notice to the mechanic with the master's copy, escalation to the
+master after the acknowledgement budget, "Не могу" handing the repair to the backup, pause and
+resume, completion, release from the panel and the reporter's notice, and the manual link sent as
+text. Two defects came out of it and are fixed here:
+
+- `nextCycle` for `FROM_COMPLETION` counted only from the performed date, so a work done early enough
+  landed the next cycle on the same date as the accepted one; `cycle_key` is unique per plan and the
+  insert did nothing, leaving the plan without an open cycle. The next date is now the later of "an
+  interval after completion" and "the day after the accepted due date" (domain test).
+- The bot closed a repair with one free-text message stored only in `summary`, while AC-045 expects
+  what was done, the cause and the parts used. `FINISH` now asks the three questions one after another
+  (`PendingStep.SUMMARY` → `CAUSE` → `PARTS`, the answers travel in the pending state) and fills
+  `summary`, `cause` and `parts_used`; a dash answers "no parts". The repair photo of AC-045 is still
+  not collected by the bot.
+
+Observed and accepted: an employee without a locale gets notices in the tenant's base language until
+the first bot contact sets it; the seeded pause reasons are Russian labels; the card in the panel
+refreshes on focus, so a bot action can take a few seconds to show.
+
 ## Verification
 
 2026-09-24, branch `claude/busy-mayer-6jmcpk`, local PostgreSQL 16, Redis 7.
@@ -177,9 +202,20 @@ at 06:00 UTC (09:00 Kyiv), skipped offsets already in the past (FR-041). Not ver
 with a mechanic's Telegram, the emergency flow, phone layouts of the new screens (the automation
 browser cannot resize) and the deployed migration `0055`, which the release will run.
 
+2026-09-25, end-to-end run: domain maintenance 22 (early completion after the due date), API
+`src/maintenance` 25 and `src/telegram/maintenance-bot` 4 (three-question repair completion) pass on
+PostgreSQL; the local journey above was repeated on the rebuilt API for the new bot questions (work
+1005 keeps summary, cause and parts) and for the next cycle after an early completion (1006 accepted
+five days early created 1007 on the following interval). Production: the owner's Telegram is linked
+to a QA mechanic employee and that employee is the responsible mechanic of the three NEWTOP machines
+for the owner's own bot test, with the original mechanic as backup; both are to be reverted after it.
+
 ## Remaining work
 
 - Positions directory: a `performs_maintenance` switch in the panel (spec A-1).
+- Revert the pilot after the owner's bot test: responsible mechanic back to the original employee on
+  the three machines, the owner's Telegram back to their own employee record, QA employee archived.
+- Optional repair photo on completion (AC-045) in the bot.
 - Live bot and emergency QA with a mechanic's Telegram on the pilot; phone screenshots of the card's new
   footer, the materials tab and the material cards.
 - Watch the pilot for materials lists over 30 rows (bot falls back to text).

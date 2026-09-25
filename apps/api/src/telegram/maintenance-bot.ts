@@ -50,8 +50,13 @@ const PendingStep = {
   REASON: 'REASON',
   PHOTO: 'PHOTO',
   SUMMARY: 'SUMMARY',
+  CAUSE: 'CAUSE',
+  PARTS: 'PARTS',
   DECLINE: 'DECLINE',
 } as const;
+
+/** A repair closes with what was done, what caused it and what was used (AC-045); none is required. */
+const NO_PARTS_MARKS: ReadonlySet<string> = new Set(['-', '—', '–']);
 
 const Pending = z.discriminatedUnion('step', [
   z.object({
@@ -74,6 +79,17 @@ const Pending = z.discriminatedUnion('step', [
     step: z.literal(PendingStep.PHOTO),
     workOrderId: z.string().uuid(),
     ordinal: z.number().int().positive(),
+  }),
+  z.object({
+    step: z.literal(PendingStep.CAUSE),
+    workOrderId: z.string().uuid(),
+    summary: z.string(),
+  }),
+  z.object({
+    step: z.literal(PendingStep.PARTS),
+    workOrderId: z.string().uuid(),
+    summary: z.string(),
+    cause: z.string(),
   }),
 ]);
 type Pending = z.infer<typeof Pending>;
@@ -214,14 +230,21 @@ class MaintenanceBot {
       [PendingStep.REASON]: bot.reasonPrompt,
       [PendingStep.PHOTO]: bot.photoPrompt,
       [PendingStep.SUMMARY]: bot.summaryPrompt,
+      [PendingStep.CAUSE]: bot.causePrompt,
+      [PendingStep.PARTS]: bot.partsPrompt,
       [PendingStep.DECLINE]: bot.declinePrompt,
     };
     return prompts[pending.step];
   }
 
   private async ask(ctx: BotContext, pending: Pending): Promise<void> {
-    await this.deps.store.set(this.key(ctx), JSON.stringify(pending), PENDING_TTL_SECONDS);
     await ctx.answerCallbackQuery();
+    await this.askText(ctx, pending);
+  }
+
+  /** Owes the next text: the answer to one question opens the following one. */
+  private async askText(ctx: BotContext, pending: Pending): Promise<void> {
+    await this.deps.store.set(this.key(ctx), JSON.stringify(pending), PENDING_TTL_SECONDS);
     await show(ctx, { text: this.prompt(ctx.t, pending) });
   }
 
@@ -330,7 +353,23 @@ class MaintenanceBot {
           materialsUsed: { kind: MaterialsUsedKind.OTHER, text },
         });
       case PendingStep.SUMMARY:
-        return this.deps.actions.submit({ ...base, summary: { text } });
+        return this.askText(ctx, {
+          step: PendingStep.CAUSE,
+          workOrderId: base.workOrderId,
+          summary: text,
+        });
+      case PendingStep.CAUSE:
+        return this.askText(ctx, {
+          step: PendingStep.PARTS,
+          workOrderId: pending.workOrderId,
+          summary: pending.summary,
+          cause: text,
+        });
+      case PendingStep.PARTS:
+        return this.deps.actions.submit({
+          ...base,
+          summary: { text: pending.summary, cause: pending.cause, ...partsFrom(text) },
+        });
       case PendingStep.DECLINE:
         return this.deps.emergency.decline(employeeId, { ...base, reason: text });
       case PendingStep.REASON:
@@ -355,12 +394,23 @@ class MaintenanceBot {
       await run();
       if (pending.step === PendingStep.DECLINE)
         return show(ctx, { text: ctx.t.maintenance.bot.declined });
+      if (asksMore(pending)) return;
     } catch (error) {
       if (!(error instanceof DomainError)) throw error;
       await show(ctx, { text: errorText(ctx.t, error) });
     }
     await show(ctx, await this.cardScreen(ctx, pending.workOrderId));
   }
+}
+
+/** The summary and cause answers open the next question instead of the card. */
+function asksMore(pending: Pending): boolean {
+  return pending.step === PendingStep.SUMMARY || pending.step === PendingStep.CAUSE;
+}
+
+/** A dash means nothing was used; the parts field then stays empty. */
+function partsFrom(text: string): { parts?: string } {
+  return NO_PARTS_MARKS.has(text) ? {} : { parts: text };
 }
 
 /** Routes maintenance buttons, owed texts and operation photos; other updates pass through. */

@@ -101,8 +101,10 @@ without a stop (P2); the operator can change these per client. Without acceptanc
 minutes later the repair is marked escalated in the panel. "Не могу" passes the repair to the backup
 mechanic without resetting the deadline.
 
-The mechanic marks "▶️ Начать", pauses if needed, and finishes with "✅ Готово" and a short
-description of what was done. Finishing the repair does not start the machine: the master or the
+The mechanic marks "▶️ Начать", pauses if needed, and finishes with "✅ Готово": the bot then asks
+three short questions one after another — what was done, what caused the breakdown, and which parts
+or materials were used (a dash means none) — and records each answer in its own field of the repair.
+Finishing the repair does not start the machine: the master or the
 chief mechanic presses "Допустить к работе" (normal or restricted operation with a condition). The
 reporter is told the machine runs again.
 

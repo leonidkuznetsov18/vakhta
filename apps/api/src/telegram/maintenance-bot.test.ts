@@ -379,8 +379,19 @@ describe('Telegram: the mechanic works maintenance and repairs from the bot (spe
     await press(maintenanceCallback(MaintenanceCallbackAction.FINISH, id));
     expect(lastScreen().text).toBe(t.maintenance.bot.summaryPrompt);
     await send({ text: 'Replaced the feed roller' });
+    expect(lastScreen().text).toBe(t.maintenance.bot.causePrompt);
+    expect(await status(id)).toBe(WorkStatus.IN_PROGRESS);
+    await send({ text: 'Worn roller' });
+    expect(lastScreen().text).toBe(t.maintenance.bot.partsPrompt);
+    await send({ text: 'Feed roller FR-12' });
 
     expect(await status(id)).toBe(WorkStatus.COMPLETED);
+    const order = one(await testDb.db.select().from(workOrders).where(eq(workOrders.id, id)));
+    expect([order.summary, order.cause, order.partsUsed]).toEqual([
+      'Replaced the feed roller',
+      'Worn roller',
+      'Feed roller FR-12',
+    ]);
     const releaseLike = lastScreen().buttons.filter((data) => /release/i.test(data));
     expect(releaseLike).toEqual([]);
   });
