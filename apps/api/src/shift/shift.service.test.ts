@@ -843,8 +843,17 @@ describe('shift: машина станів зміни в транзакції (�
       .values({ code: 'LOADER', name: 'Вантажник' })
       .returning();
     if (!otherUnit || !role) throw new Error('fixture missing');
-    // A full day starting this very hour would be the nearest start for anyone arriving now.
-    const hour = `${formatLocal(new Date(), site.timezone).local.slice(11, 13)}:00`;
+    // A full day starting this very hour would be the nearest start for anyone arriving now. When
+    // a shift the own unit can take (its own or a site-wide one) already starts at this hour, the
+    // foreign one starts at half past, so the two starts never coincide at any hour of the day.
+    const localHour = formatLocal(new Date(), site.timezone).local.slice(11, 13);
+    const ownStarts = await testDb.db
+      .select({ localStart: shiftTemplates.localStart })
+      .from(shiftTemplates)
+      .where(eq(shiftTemplates.siteId, site.id));
+    const hour = ownStarts.some((template) => template.localStart === `${localHour}:00`)
+      ? `${localHour}:30`
+      : `${localHour}:00`;
     const foreign = { localStart: hour, localEnd: hour };
     await testDb.db.insert(shiftTemplates).values({
       siteId: site.id,
