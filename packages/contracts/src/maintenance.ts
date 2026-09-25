@@ -225,6 +225,13 @@ export const PlanContent = z.object({
 });
 export type PlanContent = z.infer<typeof PlanContent>;
 
+/** The master or chief mechanic answers for the materials from the panel (owner decision 2026-09-25). */
+export const WorkReadinessCommand = z.object({
+  ready: z.boolean(),
+  note: OptionalText(500),
+});
+export type WorkReadinessCommand = z.infer<typeof WorkReadinessCommand>;
+
 export const PlanSaveCommand = PlanContent.extend({ expectedVersion: ExpectedVersion.optional() });
 export type PlanSaveCommand = z.infer<typeof PlanSaveCommand>;
 
@@ -459,6 +466,7 @@ export type CalendarItem = z.infer<typeof CalendarItem>;
 
 export const CalendarForecast = z.object({
   planId: Uuid,
+  equipmentId: Uuid,
   date: BusinessDate,
   equipmentCode: z.string(),
   title: z.string(),

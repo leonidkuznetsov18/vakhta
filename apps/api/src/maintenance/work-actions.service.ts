@@ -24,6 +24,7 @@ import {
   MaterialsUsedKind,
   type MaterialsUsed,
   type RecordCompletionCommand,
+  WorkReadinessCommand,
   type ReplanCommand,
   type ReviewCommand,
 } from '@vakhta/contracts';
@@ -418,29 +419,53 @@ export class WorkActionsService {
     return this.db.transaction(async (tx) => {
       const order = await this.lock(tx, cmd.workOrderId);
       this.assertMine(order, cmd.employeeId);
-      if (order.type !== WorkType.PLANNED_MAINTENANCE || order.status !== WorkStatus.ASSIGNED)
-        throw new DomainError(
-          'WORK_TRANSITION_NOT_ALLOWED',
-          409,
-          'Readiness is answered before the work starts',
-        );
-      const readiness = cmd.ready ? MaterialsReadiness.READY : MaterialsReadiness.MISSING;
-      await this.save(tx, order, {
-        readiness,
-        readinessNote: cmd.ready ? null : (cmd.note ?? null),
-        updatedAt: now,
-      });
-      await this.event(tx, {
-        type: 'MAINTENANCE_READINESS_REPORTED',
-        order,
+      return this.answerReadiness(tx, order, {
+        ready: cmd.ready,
+        note: cmd.note ?? null,
         context: { actor: employeeActor(cmd.employeeId), source: 'TELEGRAM', now },
-        payload: { readiness },
-        comment: cmd.note ?? null,
       });
-      if (!cmd.ready)
-        await this.notifyMissing(tx, { order, note: cmd.note ?? '', version: order.version + 1 });
-      return { readiness };
     });
+  }
+
+  /** The master or chief mechanic answers for the materials from the panel (owner decision 2026-09-25). */
+  async readinessFromPanel(id: string, cmd: WorkReadinessCommand, context: ChangeContext) {
+    return this.db.transaction(async (tx) => {
+      const order = await this.lock(tx, id);
+      return this.answerReadiness(tx, order, { ready: cmd.ready, note: cmd.note ?? null, context });
+    });
+  }
+
+  private async answerReadiness(
+    tx: Transaction,
+    order: OrderRow,
+    input: {
+      readonly ready: boolean;
+      readonly note: string | null;
+      readonly context: ChangeContext;
+    },
+  ) {
+    if (order.type !== WorkType.PLANNED_MAINTENANCE || order.status !== WorkStatus.ASSIGNED)
+      throw new DomainError(
+        'WORK_TRANSITION_NOT_ALLOWED',
+        409,
+        'Readiness is answered before the work starts',
+      );
+    const readiness = input.ready ? MaterialsReadiness.READY : MaterialsReadiness.MISSING;
+    await this.save(tx, order, {
+      readiness,
+      readinessNote: input.ready ? null : input.note,
+      updatedAt: input.context.now,
+    });
+    await this.event(tx, {
+      type: 'MAINTENANCE_READINESS_REPORTED',
+      order,
+      context: input.context,
+      payload: { readiness },
+      comment: input.note,
+    });
+    if (!input.ready)
+      await this.notifyMissing(tx, { order, note: input.note ?? '', version: order.version + 1 });
+    return { readiness };
   }
 
   private async notifyMissing(

@@ -6,12 +6,20 @@ import {
   CircleCheckIcon,
   CircleDashedIcon,
   ClipboardPenIcon,
+  PackageCheckIcon,
+  PackageXIcon,
   Undo2Icon,
   UserRoundIcon,
   XCircleIcon,
 } from 'lucide-react';
-import type { WorkDetail, WorkOperationView } from '@vakhta/contracts';
-import { AnchorMode, ReviewDecision, type OperationResult } from '@vakhta/domain';
+import type { WorkDetail, WorkOperationView, WorkReadinessCommand } from '@vakhta/contracts';
+import {
+  AnchorMode,
+  MaterialsReadiness,
+  ReviewDecision,
+  WorkStatus,
+  type OperationResult,
+} from '@vakhta/domain';
 import { format } from '@vakhta/i18n';
 import {
   WorkStatusPill,
@@ -52,6 +60,7 @@ import { RepairBody, RepairMeta } from './repair-body';
 import { ChangeDialog, ReassignDialog, ReplanDialog } from './work-change-dialogs';
 import { WorkDeliveries } from './work-deliveries';
 import { WorkField } from './work-field';
+import { IconButton } from '@/shared/ui/icon-button';
 import { RichText } from '@/shared/ui/rich-text';
 
 const RESULT_VIEW: Readonly<Record<OperationResult, { tone: PillTone; icon: ReactNode }>> = {
@@ -131,20 +140,98 @@ function OperationItem({
   );
 }
 
-/** What was used once the work is handed in; until then, what the plan asks to prepare. */
-function Materials({ work }: { readonly work: WorkDetail }) {
+const READINESS_TONE: Readonly<Record<MaterialsReadiness, PillTone | undefined>> = {
+  READY: 'success',
+  MISSING: 'warning',
+  UNKNOWN: undefined,
+};
+
+/** The master or chief mechanic answers for the materials before the work starts (owner decision 2026-09-25). */
+function useReadiness(workId: string) {
   const t = maintenanceMessages().workCard;
+  const client = useQueryClient();
+  const { confirm, dialog } = useConfirm();
+  const answer = useMutation({
+    mutationFn: (command: WorkReadinessCommand) => maintenanceApi.readiness(workId, command),
+    onSuccess: async (_result, command) => {
+      await client.invalidateQueries({ queryKey: maintenanceKeys.all });
+      notifySuccess(command.ready ? t.readinessConfirmed : t.readinessMissingSaved);
+    },
+  });
+  const reportMissing = async () => {
+    const note = await confirm({
+      title: t.reportMissing,
+      commentLabel: t.missingPrompt,
+      commentRequired: true,
+      confirmLabel: t.reportMissing,
+    });
+    if (note !== false) answer.mutate({ ready: false, note });
+  };
+  return { answer, reportMissing, dialog };
+}
+
+function ReadinessActions({ work }: { readonly work: WorkDetail }) {
+  const t = maintenanceMessages().workCard;
+  const { answer, reportMissing, dialog } = useReadiness(work.id);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <IconButton
+        icon={PackageCheckIcon}
+        label={t.confirmReady}
+        tooltip={t.actionHints.confirmReady}
+        variant="outline"
+        size="sm"
+        disabled={work.readiness === MaterialsReadiness.READY}
+        pending={answer.isPending && answer.variables.ready}
+        onClick={() => answer.mutate({ ready: true })}
+      />
+      <IconButton
+        icon={PackageXIcon}
+        label={t.reportMissing}
+        tooltip={t.actionHints.reportMissing}
+        variant="outline"
+        size="sm"
+        pending={answer.isPending && !answer.variables.ready}
+        onClick={() => void reportMissing()}
+      />
+      <Feedback error={answer.error ? describeError(answer.error) : null} />
+      {dialog}
+    </div>
+  );
+}
+
+/** Materials are answered for planned work that has not started yet. */
+function canAnswerReadiness(
+  work: WorkDetail,
+  access: { readonly canManage: boolean; readonly canRespond: boolean },
+): boolean {
+  if (isRepair(work) || work.status !== WorkStatus.ASSIGNED) return false;
+  return access.canManage || access.canRespond;
+}
+
+/** What was used once the work is handed in; until then, what the plan asks to prepare. */
+function Materials({
+  work,
+  canAnswer,
+}: {
+  readonly work: WorkDetail;
+  readonly canAnswer: boolean;
+}) {
+  const t = maintenanceMessages();
   if (work.partsUsed)
     return (
       <section className="flex flex-col gap-1">
-        <h3 className="font-medium">{t.used}</h3>
+        <h3 className="font-medium">{t.workCard.used}</h3>
         <RichText text={work.partsUsed} className="text-sm" />
       </section>
     );
   if (!work.materials.length) return null;
   return (
-    <section className="flex flex-col gap-1">
-      <h3 className="font-medium">{t.materials}</h3>
+    <section className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-medium">{t.workCard.materials}</h3>
+        <StatusPill tone={READINESS_TONE[work.readiness]}>{t.readiness[work.readiness]}</StatusPill>
+      </div>
       <ul className="text-sm">
         {work.materials.map((material) => (
           <li key={material.id}>
@@ -155,6 +242,7 @@ function Materials({ work }: { readonly work: WorkDetail }) {
           </li>
         ))}
       </ul>
+      {canAnswer ? <ReadinessActions work={work} /> : null}
     </section>
   );
 }
@@ -183,10 +271,12 @@ function ReviewHistory({ work }: { readonly work: WorkDetail }) {
 function PlannedBody({
   work,
   canManage,
+  canRespond,
   review,
 }: {
   readonly work: WorkDetail;
   readonly canManage: boolean;
+  readonly canRespond: boolean;
   /** The review form, when the work waits for the manager's decision. */
   readonly review: ReactNode;
 }) {
@@ -218,7 +308,7 @@ function PlannedBody({
       ) : (
         <EmptyState text={t.plans.empty} />
       )}
-      <Materials work={work} />
+      <Materials work={work} canAnswer={canAnswerReadiness(work, { canManage, canRespond })} />
       <ReviewHistory work={work} />
       {review}
       <WorkDeliveries work={work} />
@@ -535,6 +625,7 @@ function WorkSheetView({ workId, canManage, canRespond, onClose, onRelease }: Sh
       <WorkBody
         work={work}
         canManage={canManage}
+        canRespond={canRespond}
         review={
           actions.review ? (
             <ReviewForm work={work} comment={comment} onComment={setComment} error={review.error} />
@@ -552,14 +643,16 @@ function WorkMeta({ work }: { readonly work: WorkDetail }) {
 function WorkBody({
   work,
   canManage,
+  canRespond,
   review,
 }: {
   readonly work: WorkDetail;
   readonly canManage: boolean;
+  readonly canRespond: boolean;
   readonly review: ReactNode;
 }) {
   if (isRepair(work)) return <RepairBody work={work} />;
-  return <PlannedBody work={work} canManage={canManage} review={review} />;
+  return <PlannedBody work={work} canManage={canManage} canRespond={canRespond} review={review} />;
 }
 
 /** One work order: the review of planned maintenance or the course of an emergency repair. */

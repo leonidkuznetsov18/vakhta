@@ -57,7 +57,13 @@ describe('maintenance calendar month', () => {
         item({ equipmentCode: 'M-03', type: WorkType.EMERGENCY_REPAIR, title: 'Jam' }),
       ],
       forecast: [
-        { planId: crypto.randomUUID(), date: '2026-09-30', equipmentCode: 'M-01', title: 'Oil' },
+        {
+          planId: crypto.randomUUID(),
+          equipmentId: crypto.randomUUID(),
+          date: '2026-09-30',
+          equipmentCode: 'M-01',
+          title: 'Oil',
+        },
       ],
       overdue: [],
     };
@@ -97,7 +103,13 @@ describe('maintenance calendar month', () => {
         item({ date: '2026-09-30' }),
       ],
       forecast: [
-        { planId: crypto.randomUUID(), date: '2026-09-30', equipmentCode: 'M-01', title: 'Oil' },
+        {
+          planId: crypto.randomUUID(),
+          equipmentId: crypto.randomUUID(),
+          date: '2026-09-30',
+          equipmentCode: 'M-01',
+          title: 'Oil',
+        },
       ],
       overdue: [],
     };

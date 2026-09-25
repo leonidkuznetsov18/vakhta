@@ -28,6 +28,7 @@ import {
   ReasonCommand,
   ReassignCommand,
   RecordCompletionCommand,
+  WorkReadinessCommand,
   ReleaseCommand,
   ReplanCommand,
   ReviewCommand,
@@ -371,6 +372,17 @@ export class MaintenanceController {
   ) {
     await this.workInScope(user, MAINTENANCE_MANAGERS, id);
     return this.actions.recordCompletion(id, body, this.context(user));
+  }
+
+  @Post('work/:id/readiness')
+  @Roles(...MAINTENANCE_RESPONDERS)
+  async readiness(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(WorkReadinessCommand)) body: WorkReadinessCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    await this.workInScope(user, MAINTENANCE_RESPONDERS, id);
+    return this.actions.readinessFromPanel(id, body, this.context(user));
   }
 
   @Post('work/:id/review')

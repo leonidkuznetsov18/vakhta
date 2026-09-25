@@ -627,6 +627,7 @@ export class WorkQueriesService {
     const open = await this.db
       .select({
         planId: maintenancePlans.id,
+        equipmentId: equipment.id,
         title: maintenancePlans.title,
         code: equipment.code,
         dueOn: workOrders.dueOn,
@@ -653,6 +654,7 @@ export class WorkQueriesService {
       plan.dueOn
         ? forecastDueDates(plan, plan.dueOn, query).map((date) => ({
             planId: plan.planId,
+            equipmentId: plan.equipmentId,
             date,
             equipmentCode: plan.code,
             title: plan.title,

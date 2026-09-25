@@ -42,6 +42,7 @@ import {
   TenantModule,
   WorkStatus,
   WorkType,
+  MaterialsReadiness,
 } from '@vakhta/domain';
 import { FULL_SCOPE } from '../common/access-scope.js';
 import type { Actor } from '../common/actor.js';
@@ -461,6 +462,30 @@ describe('equipment maintenance: register, manuals, plans, work and emergencies 
         { status: WorkStatus.COMPLETED, dueOn: FIRST_DUE_ON },
         { status: WorkStatus.ASSIGNED, dueOn: '2026-11-14' },
       ]);
+    });
+
+    it('the chief mechanic confirms the materials from the panel and a shortage still reaches the master', async () => {
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const { order } = await publishedPlan(machine.id);
+      const context = { actor: CHIEF, source: 'WEB' as const, now: NOW };
+      expect(await services.actions.readinessFromPanel(order.id, { ready: true }, context)).toEqual(
+        { readiness: MaterialsReadiness.READY },
+      );
+      await services.actions.readinessFromPanel(
+        order.id,
+        { ready: false, note: 'No filter in stock' },
+        context,
+      );
+      const [row] = await testDb.db
+        .select({ readiness: workOrders.readiness, note: workOrders.readinessNote })
+        .from(workOrders)
+        .where(eq(workOrders.id, order.id));
+      expect(row).toEqual({ readiness: MaterialsReadiness.MISSING, note: 'No filter in stock' });
+      const notices = await testDb.db
+        .select()
+        .from(notificationOutbox)
+        .where(eq(notificationOutbox.template, 'MAINTENANCE_READINESS'));
+      expect(notices.map((notice) => notice.recipientId)).toEqual([master]);
     });
 
     it('a missing material informs the unit master (AC-030)', async () => {

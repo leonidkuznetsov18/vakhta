@@ -23,6 +23,7 @@ import {
   ReleaseCommand,
   ReplanCommand,
   ReviewCommand,
+  WorkReadinessCommand,
   StateCorrectionCommand,
   WorkDetail,
   WorkRow,
@@ -127,6 +128,10 @@ export const maintenanceApi = {
   recordCompletion: (id: string, command: RecordCompletionCommand) =>
     send(z.unknown(), `${root}/work/${id}/record-completion`, {
       data: RecordCompletionCommand.parse(command),
+    }),
+  readiness: (id: string, command: WorkReadinessCommand) =>
+    send(z.unknown(), `${root}/work/${id}/readiness`, {
+      data: WorkReadinessCommand.parse(command),
     }),
   review: (id: string, command: ReviewCommand) =>
     send(z.unknown(), `${root}/work/${id}/review`, { data: ReviewCommand.parse(command) }),
