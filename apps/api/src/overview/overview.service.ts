@@ -71,7 +71,7 @@ import {
   type RoleGrant,
   type ShiftWindow,
   type StaffingSnapshot,
-  type WebRole,
+  WebRole,
 } from '@vakhta/domain';
 import { DateTime } from 'luxon';
 import { assertFiltersInScope, scopeCondition } from '../common/access-scope.js';
@@ -100,6 +100,8 @@ const ALL_ROLES: readonly WebRole[] = [
   'ACCOUNTANT',
   'AUDITOR',
 ];
+/** Who opens the page; a chief mechanic reads only the equipment blocks and the shift line. */
+export const OVERVIEW_READERS: readonly WebRole[] = [...ALL_ROLES, WebRole.CHIEF_MECHANIC];
 /** Each section reads a source; its roles mirror that source's endpoint (spec 004 D-09). */
 export const SECTION_ROLES = {
   staffing: [...OPS, 'PLANNER', 'HR'],
@@ -143,7 +145,7 @@ export class OverviewService {
     query: OverviewQuery,
     now: Date = new Date(),
   ): Promise<OverviewSnapshot> {
-    const reader = accessScope(grants, ALL_ROLES);
+    const reader = accessScope(grants, OVERVIEW_READERS);
     await assertFiltersInScope(this.db, reader, query);
     return this.db.transaction(
       async (tx) => {
@@ -303,7 +305,7 @@ export class OverviewService {
     query: OverviewEventsQuery,
     now: Date = new Date(),
   ): Promise<OverviewEvent[]> {
-    const reader = accessScope(grants, ALL_ROLES);
+    const reader = accessScope(grants, OVERVIEW_READERS);
     await assertFiltersInScope(this.db, reader, query);
     const place = {
       site: sql`coalesce(z.site_id, i.site_id, u.site_id)`,

@@ -13,6 +13,7 @@ import {
   equipmentStopEpisodes,
   gte,
   inArray,
+  isNull,
   lte,
   maintenancePlanMaterials,
   maintenancePlanOperations,
@@ -40,12 +41,17 @@ import type {
   CalendarItem,
   CalendarQuery,
   MaintenanceCalendarView,
+  MaintenanceOverview,
+  MaintenanceOverviewMachine,
+  MaintenanceOverviewQuery,
+  MaintenanceOverviewWork,
   MaintenanceSummary,
   WorkDetail,
   WorkQuery,
   WorkRow,
 } from '@vakhta/contracts';
 import {
+  EquipmentState,
   FINAL_WORK_STATUSES,
   PlanState,
   WorkStatus,
@@ -56,7 +62,10 @@ import {
   isOpenWork,
   isOverdue,
   nextCycle,
+  overviewWorkBucket,
+  type OverviewWorkBucket,
   planVersionDiff,
+  upcomingHorizonDays,
   type AccessScope,
   type ScopeTarget,
 } from '@vakhta/domain';
@@ -81,6 +90,8 @@ interface Located {
 
 const FINAL = [...FINAL_WORK_STATUSES];
 const QUEUE_LIMIT = 200;
+/** Open work the Overview page reads at most; a plant has far fewer open orders. */
+const OVERVIEW_LIMIT = 500;
 const TEMPLATES = new Set<string>(MAINTENANCE_TEMPLATES);
 /** Outbox keys of this module are `<kind>:<workOrderId>:…`; the second part names the work. */
 const DEDUPE_WORK_PART = 2;
@@ -88,6 +99,50 @@ const DEDUPE_WORK_PART = 2;
 /** Today in the machine's site time zone, as SQL over the joined `sites` row (spec A-5). */
 function siteToday(now: Date): SQL {
   return sql`(${now.toISOString()}::timestamptz AT TIME ZONE ${sites.timezone})::date`;
+}
+
+/** Where a machine stands, as the Overview page reads it. */
+const OVERVIEW_PLACE = {
+  siteId: equipment.siteId,
+  orgUnitId: equipment.orgUnitId,
+  zoneId: equipment.zoneId,
+  location: sql<string>`concat_ws(' · ', ${orgUnits.name}, ${responsibilityZones.name})`,
+};
+
+interface OverviewOrderRow {
+  readonly order: OrderRow;
+  readonly siteId: string;
+  readonly orgUnitId: string;
+  readonly zoneId: string | null;
+  readonly location: string;
+  readonly code: string;
+  readonly name: string;
+  readonly requiresStop: boolean | null;
+}
+
+function overviewWork(row: OverviewOrderRow, bucket: OverviewWorkBucket): MaintenanceOverviewWork {
+  const { order } = row;
+  return {
+    id: order.id,
+    number: order.number,
+    type: order.type,
+    priority: order.priority,
+    status: order.status,
+    bucket,
+    equipment: { id: order.equipmentId, code: row.code, name: row.name },
+    siteId: row.siteId,
+    orgUnitId: row.orgUnitId,
+    zoneId: row.zoneId,
+    location: row.location,
+    dueOn: order.dueOn,
+    plannedOn: order.plannedOn,
+    reportedAt: isoOrNull(order.reportedAt),
+    ackDueAt: isoOrNull(order.ackDueAt),
+    acceptedAt: isoOrNull(order.acceptedAt),
+    escalatedAt: isoOrNull(order.escalatedAt),
+    submittedAt: isoOrNull(order.submittedAt),
+    requiresStop: row.requiresStop ?? false,
+  };
 }
 
 /** Where the reported emergency or planned work sits on the calendar. */
@@ -234,6 +289,91 @@ export class WorkQueriesService {
       .innerJoin(sites, eq(sites.id, equipment.siteId))
       .where(and(this.scoped(scope), notInArray(workOrders.status, FINAL)));
     return row ?? { openEmergencies: 0, overdue: 0, inReview: 0 };
+  }
+
+  /**
+   * The Overview selection narrows the scope rather than being rejected: its options come from every
+   * Overview role, so a mixed-role reader may pick a place outside maintenance; that place reads empty.
+   */
+  private selected(query: MaintenanceOverviewQuery): SQL | undefined {
+    return and(
+      query.siteId ? eq(equipment.siteId, query.siteId) : undefined,
+      query.orgUnitId ? eq(equipment.orgUnitId, query.orgUnitId) : undefined,
+    );
+  }
+
+  /**
+   * Equipment facts of the Overview page: open emergencies, overdue, in review, today's and
+   * approaching maintenance, and machines stopped now, in the reader's scope and selection.
+   */
+  async overview(
+    query: MaintenanceOverviewQuery,
+    scope: AccessScope,
+    now: Date,
+  ): Promise<MaintenanceOverview> {
+    const horizonDays = upcomingHorizonDays(this.options.reminderOffsets);
+    const where = and(this.scoped(scope), this.selected(query));
+    const [orders, stopped] = await Promise.all([
+      this.overviewOrders(where, horizonDays, now),
+      this.stoppedMachines(where),
+    ]);
+    const works: MaintenanceOverviewWork[] = [];
+    for (const row of orders) {
+      const bucket = overviewWorkBucket(row.order, businessDateOf(now, row.timezone), horizonDays);
+      if (bucket) works.push(overviewWork(row, bucket));
+    }
+    return { horizonDays, works, stopped };
+  }
+
+  /** Open work that may land in a bucket; the pure rule then decides per site day. */
+  private overviewOrders(where: SQL | undefined, horizonDays: number, now: Date) {
+    const today = siteToday(now);
+    return this.db
+      .select({
+        order: workOrders,
+        ...OVERVIEW_PLACE,
+        code: equipment.code,
+        name: equipment.name,
+        timezone: sites.timezone,
+        requiresStop: maintenancePlanVersions.requiresStop,
+      })
+      .from(workOrders)
+      .innerJoin(equipment, eq(equipment.id, workOrders.equipmentId))
+      .innerJoin(sites, eq(sites.id, equipment.siteId))
+      .innerJoin(orgUnits, eq(orgUnits.id, equipment.orgUnitId))
+      .leftJoin(responsibilityZones, eq(responsibilityZones.id, equipment.zoneId))
+      .leftJoin(maintenancePlanVersions, eq(maintenancePlanVersions.id, workOrders.planVersionId))
+      .where(
+        and(
+          where,
+          notInArray(workOrders.status, FINAL),
+          or(
+            eq(workOrders.type, WorkType.EMERGENCY_REPAIR),
+            eq(workOrders.status, WorkStatus.IN_REVIEW),
+            sql`${workOrders.dueOn} < ${today}`,
+            sql`${workOrders.plannedOn} <= ${today} + ${horizonDays}::int`,
+          ),
+        ),
+      )
+      .orderBy(asc(workOrders.reportedAt), asc(workOrders.plannedOn), asc(workOrders.number))
+      .limit(OVERVIEW_LIMIT);
+  }
+
+  private async stoppedMachines(where: SQL | undefined): Promise<MaintenanceOverviewMachine[]> {
+    const rows = await this.db
+      .select({
+        id: equipment.id,
+        code: equipment.code,
+        name: equipment.name,
+        ...OVERVIEW_PLACE,
+        since: equipment.stateChangedAt,
+      })
+      .from(equipment)
+      .innerJoin(orgUnits, eq(orgUnits.id, equipment.orgUnitId))
+      .leftJoin(responsibilityZones, eq(responsibilityZones.id, equipment.zoneId))
+      .where(and(where, eq(equipment.state, EquipmentState.STOPPED), isNull(equipment.archivedAt)))
+      .orderBy(asc(equipment.stateChangedAt));
+    return rows.map((machine) => ({ ...machine, since: machine.since.toISOString() }));
   }
 
   async hasPhoto(workOrderId: string, mediaId: string): Promise<boolean> {

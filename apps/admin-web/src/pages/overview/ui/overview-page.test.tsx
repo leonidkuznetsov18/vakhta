@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, renderHook, waitFor, screen } from '@testing-l
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type * as ApiModule from '@/api';
+import type * as MaintenanceApiModule from '@/entities/maintenance/api/maintenance-api';
 import type { ActiveShiftView, MeView, OverviewSnapshot } from '@vakhta/contracts';
 import { render } from '@/test-utils';
 import { keys } from '@/lib/query';
@@ -25,6 +26,7 @@ const api = vi.hoisted(() => ({
   org: vi.fn(),
   snapshot: vi.fn(),
   events: vi.fn(),
+  maintenance: vi.fn(),
 }));
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal<typeof ApiModule>()),
@@ -36,6 +38,10 @@ vi.mock('@/api', async (importOriginal) => ({
   employeesApi: { list: api.employees },
   orgApi: { snapshot: api.org },
 }));
+vi.mock('@/entities/maintenance/api/maintenance-api', async (importOriginal) => {
+  const original = await importOriginal<typeof MaintenanceApiModule>();
+  return { maintenanceApi: { ...original.maintenanceApi, overview: api.maintenance } };
+});
 const me: MeView = {
   id: 'qa',
   email: 'qa@example.com',
@@ -145,6 +151,7 @@ beforeEach(() => {
   api.org.mockResolvedValue({ terminals: [] });
   api.snapshot.mockResolvedValue(snapshot());
   api.events.mockResolvedValue([]);
+  api.maintenance.mockResolvedValue({ horizonDays: 7, works: [], stopped: [] });
 });
 afterEach(cleanup);
 
@@ -298,6 +305,52 @@ describe('overview query integration', () => {
     expect(screen.queryByText(/Ночная смена/)).toBeNull();
     expect(screen.queryByText(c.healthTitle)).toBeNull();
     expect(screen.queryByText(c.noPlan)).toBeNull();
+  });
+  it('shows a stopped machine and opens its repair from the card', async () => {
+    const machine = {
+      siteId: SITE,
+      orgUnitId: 'a0000000-0000-4000-8000-0000000000e1',
+      zoneId: null,
+      location: 'Cups',
+    };
+    api.maintenance.mockResolvedValue({
+      horizonDays: 7,
+      works: [
+        {
+          ...machine,
+          id: 'a0000000-0000-4000-8000-0000000000e2',
+          number: 1001,
+          type: 'EMERGENCY_REPAIR',
+          priority: 'P1',
+          status: 'ASSIGNED',
+          bucket: 'EMERGENCY',
+          equipment: { id: 'a0000000-0000-4000-8000-0000000000e3', code: 'FB-200', name: 'Packer' },
+          dueOn: null,
+          plannedOn: null,
+          reportedAt: '2026-09-13T08:50:00Z',
+          ackDueAt: '2026-09-13T08:55:00Z',
+          acceptedAt: null,
+          escalatedAt: null,
+          submittedAt: null,
+          requiresStop: false,
+        },
+      ],
+      stopped: [
+        {
+          ...machine,
+          id: 'a0000000-0000-4000-8000-0000000000e3',
+          code: 'FB-200',
+          name: 'Packer',
+          since: '2026-09-13T08:50:00Z',
+        },
+      ],
+    });
+    page();
+    expect(await screen.findByText(format(c.equipmentStopped, { count: 1 }))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: `1 ${c.items.maintenanceEmergency}` }));
+    await waitFor(() =>
+      expect(location.hash).toBe('#/maintenance/work/a0000000-0000-4000-8000-0000000000e2'),
+    );
   });
   it('shows retry instead of zero when the shift snapshot fails (AC-019)', async () => {
     api.snapshot.mockRejectedValue(new Error('Unavailable'));

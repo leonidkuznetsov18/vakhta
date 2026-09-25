@@ -10,6 +10,7 @@ import {
   MATERIAL_KINDS,
   MATERIAL_MODES,
   NOTICE_DELIVERIES,
+  OVERVIEW_WORK_BUCKETS,
   OPERATION_RESULTS,
   PLAN_DIFF_FIELDS,
   PLAN_SOURCE_KINDS,
@@ -48,6 +49,7 @@ export const ReleaseModeSchema = z.enum(RELEASE_MODES);
 export const MaintenanceTemplateSchema = z.enum(MAINTENANCE_TEMPLATES);
 export const NoticeDeliverySchema = z.enum(NOTICE_DELIVERIES);
 export const PlanDiffFieldSchema = z.enum(PLAN_DIFF_FIELDS);
+export const OverviewWorkBucketSchema = z.enum(OVERVIEW_WORK_BUCKETS);
 
 const Text = (max: number) => z.string().trim().min(1).max(max);
 const OptionalText = (max: number) => z.string().trim().max(max).optional();
@@ -540,6 +542,59 @@ export const MaintenanceSummary = z.object({
   inReview: z.number().int().nonnegative(),
 });
 export type MaintenanceSummary = z.infer<typeof MaintenanceSummary>;
+
+/** The Overview page's selection inside the reader's maintenance scope. */
+export const MaintenanceOverviewQuery = z.object({
+  siteId: Uuid.optional(),
+  orgUnitId: Uuid.optional(),
+});
+export type MaintenanceOverviewQuery = z.infer<typeof MaintenanceOverviewQuery>;
+
+const OverviewPlace = z.object({
+  siteId: Uuid,
+  orgUnitId: Uuid,
+  zoneId: Uuid.nullable(),
+  /** "Unit · zone" as the register shows it. */
+  location: z.string(),
+});
+
+/** An open work order the Overview page shows, with the bucket that decides its card. */
+export const MaintenanceOverviewWork = OverviewPlace.extend({
+  id: Uuid,
+  number: z.number().int(),
+  type: WorkTypeSchema,
+  priority: WorkPrioritySchema,
+  status: WorkStatusSchema,
+  bucket: OverviewWorkBucketSchema,
+  equipment: z.object({ id: Uuid, code: z.string(), name: z.string() }),
+  dueOn: BusinessDate.nullable(),
+  plannedOn: BusinessDate.nullable(),
+  reportedAt: IsoDateTime.nullable(),
+  ackDueAt: IsoDateTime.nullable(),
+  acceptedAt: IsoDateTime.nullable(),
+  escalatedAt: IsoDateTime.nullable(),
+  submittedAt: IsoDateTime.nullable(),
+  /** Planned maintenance that stops the machine. */
+  requiresStop: z.boolean(),
+});
+export type MaintenanceOverviewWork = z.infer<typeof MaintenanceOverviewWork>;
+
+export const MaintenanceOverviewMachine = OverviewPlace.extend({
+  id: Uuid,
+  code: z.string(),
+  name: z.string(),
+  since: IsoDateTime,
+});
+export type MaintenanceOverviewMachine = z.infer<typeof MaintenanceOverviewMachine>;
+
+/** Equipment facts of the Overview page: open work by bucket and machines stopped now. */
+export const MaintenanceOverview = z.object({
+  /** Days ahead that count as approaching maintenance. */
+  horizonDays: z.number().int().positive(),
+  works: z.array(MaintenanceOverviewWork),
+  stopped: z.array(MaintenanceOverviewMachine),
+});
+export type MaintenanceOverview = z.infer<typeof MaintenanceOverview>;
 
 const OperationFacts = z.object({
   text: z.string(),

@@ -395,6 +395,28 @@ describe('overview snapshot (spec 004)', () => {
     );
     expect(hr.terminals).toBeNull();
     expect(hr.staffing).not.toBeNull();
+    const mechanic = await service.snapshot(
+      [{ role: 'CHIEF_MECHANIC', scopeType: 'ENTERPRISE', scopeId: null }],
+      {},
+      now,
+    );
+    expect(mechanic.contexts).toHaveLength(1);
+    expect([
+      mechanic.staffing,
+      mechanic.downtime,
+      mechanic.timeToAction,
+      mechanic.handover,
+      mechanic.terminals,
+      mechanic.zones,
+      mechanic.setup,
+    ]).toEqual([null, null, null, null, null, null, null]);
+    expect(
+      await service.events(
+        [{ role: 'CHIEF_MECHANIC', scopeType: 'ENTERPRISE', scopeId: null }],
+        { limit: 30 },
+        now,
+      ),
+    ).toEqual([]);
   });
 
   it('AC-025/AC-026: events are allowlisted, scoped per source and carry no free text', async () => {

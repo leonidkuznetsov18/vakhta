@@ -1,5 +1,10 @@
 import { queryOptions } from '@tanstack/react-query';
-import type { CalendarQuery, EquipmentQuery, WorkQuery } from '@vakhta/contracts';
+import type {
+  CalendarQuery,
+  EquipmentQuery,
+  MaintenanceOverviewQuery,
+  WorkQuery,
+} from '@vakhta/contracts';
 import { localActivity } from '@/shared/api/activity';
 import { maintenanceApi } from '../api/maintenance-api';
 
@@ -7,6 +12,8 @@ import { maintenanceApi } from '../api/maintenance-api';
 export const maintenanceKeys = {
   all: ['maintenance'] as const,
   summary: () => ['maintenance', 'summary'] as const,
+  overview: (query: MaintenanceOverviewQuery) =>
+    ['maintenance', 'overview', query.siteId ?? null, query.orgUnitId ?? null] as const,
   policy: () => ['maintenance', 'policy'] as const,
   mechanics: () => ['maintenance', 'mechanics'] as const,
   equipment: () => ['maintenance', 'equipment'] as const,
@@ -56,6 +63,14 @@ export const maintenanceQueries = {
       queryKey: maintenanceKeys.summary(),
       queryFn: ({ signal }) => maintenanceApi.summary(signal),
       meta: localActivity,
+    }),
+  /** Equipment facts of the Overview page; polled like the page's other sources. */
+  overview: (query: MaintenanceOverviewQuery) =>
+    queryOptions({
+      queryKey: maintenanceKeys.overview(query),
+      queryFn: ({ signal }) => maintenanceApi.overview(query, signal),
+      refetchInterval: 60_000,
+      placeholderData: (previous) => previous,
     }),
   policy: () =>
     queryOptions({

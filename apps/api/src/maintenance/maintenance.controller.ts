@@ -22,6 +22,7 @@ import {
   EquipmentInput,
   EquipmentQuery,
   EquipmentUpdate,
+  MaintenanceOverviewQuery,
   PlanCopyCommand,
   PlanSaveCommand,
   PlanStateCommand,
@@ -101,6 +102,15 @@ export class MaintenanceController {
   @Get('summary')
   summary(@CurrentUser() user: WebUser) {
     return this.queries.summary(scopeOf(user, MAINTENANCE_VIEWERS), new Date());
+  }
+
+  /** Equipment facts of the Overview page (owner request 2026-09-25). */
+  @Get('overview')
+  overview(
+    @Query(new ZodValidationPipe(MaintenanceOverviewQuery)) q: MaintenanceOverviewQuery,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.queries.overview(q, scopeOf(user, MAINTENANCE_VIEWERS), new Date());
   }
 
   @Get('policy')

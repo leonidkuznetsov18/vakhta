@@ -6,8 +6,8 @@ administrator sees what needs action first, how the shift is going and what may 
 closing well. Everything on the page is limited to the sites and units of the reader's role grants.
 
 The page is built from recorded facts only: schedule versions, QR presence, shift sessions and their
-activity intervals, incidents, handover reports and the kiosk heartbeat. It does not show output,
-OEE or equipment states.
+activity intervals, incidents, handover reports, the kiosk heartbeat and, when the "Обслуговування"
+module is on, machine states and maintenance work. It does not show output or OEE.
 
 ## Layout from top to bottom
 
@@ -52,20 +52,25 @@ shows the count, what it counts, the age and deadline ("прострочено �
 тому"), the faces behind it and its tier as text with an icon, so colour is never the only signal.
 Clicking a card opens the first record in its section with conflicting filters cleared.
 
-| Tier      | Card                              | Counts                                                                                                                                 | Opens                           |
-| --------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| Критично  | "Інцидент без реакції після SLA"  | Open incidents past their SLA with no acknowledgement or resolution                                                                    | Incidents, first breach         |
-| Критично  | "Інцидент безпеки відкритий"      | Open SAFETY incidents                                                                                                                  | Incidents                       |
-| Критично  | "Термінал без зв’язку"            | Active paired kiosks silent for more than three QR renewals, when a shift boundary is within an hour or planned staff are not recorded | Administration → Terminals      |
-| Критично  | "Зона в простої довше за 15 хв"   | Zones with an open downtime longer than the downtime escalation time                                                                   | Live shift, downtime group      |
-| Увага     | "Відкриті інциденти"              | All open incidents                                                                                                                     | Incidents                       |
-| Увага     | "Чек-листи без рішення майстра"   | Submitted or disputed handover reports, including before the deadline                                                                  | Handover, first report          |
-| Увага     | "Не прийшли за графіком"          | Planned people of the current shift whose late grace has passed with no presence or shift                                              | Live shift of the business date |
-| Увага     | "Термінал без зв’язку"            | A silent kiosk when nobody depends on it within the next hour                                                                          | Administration → Terminals      |
-| Увага     | "Прострочені звернення"           | Requests at the reader's step past their step deadline                                                                                 | Requests                        |
-| Увага     | "Закриті без чек-листа за 24 год" | Shifts closed by the end-of-day job without a checklist                                                                                | Live shift                      |
-| До відома | "Звернення на моєму кроці"        | Open requests waiting for the reader's role                                                                                            | Requests                        |
-| До відома | "Переробка чекає рішення"         | Overtime waiting for approval                                                                                                          | Requests                        |
+| Tier      | Card                              | Counts                                                                                                                                 | Opens                            |
+| --------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Критично  | "Інцидент без реакції після SLA"  | Open incidents past their SLA with no acknowledgement or resolution                                                                    | Incidents, first breach          |
+| Критично  | "Інцидент безпеки відкритий"      | Open SAFETY incidents                                                                                                                  | Incidents                        |
+| Критично  | "Термінал без зв’язку"            | Active paired kiosks silent for more than three QR renewals, when a shift boundary is within an hour or planned staff are not recorded | Administration → Terminals       |
+| Критично  | "Зона в простої довше за 15 хв"   | Zones with an open downtime longer than the downtime escalation time                                                                   | Live shift, downtime group       |
+| Увага     | "Відкриті інциденти"              | All open incidents                                                                                                                     | Incidents                        |
+| Увага     | "Чек-листи без рішення майстра"   | Submitted or disputed handover reports, including before the deadline                                                                  | Handover, first report           |
+| Увага     | "Не прийшли за графіком"          | Planned people of the current shift whose late grace has passed with no presence or shift                                              | Live shift of the business date  |
+| Увага     | "Термінал без зв’язку"            | A silent kiosk when nobody depends on it within the next hour                                                                          | Administration → Terminals       |
+| Увага     | "Прострочені звернення"           | Requests at the reader's step past their step deadline                                                                                 | Requests                         |
+| Увага     | "Закриті без чек-листа за 24 год" | Shifts closed by the end-of-day job without a checklist                                                                                | Live shift                       |
+| Критично  | "Аварійний ремонт станка"         | Open emergency repairs when one is P0/P1 (danger or a stopped machine), escalated or not accepted by its deadline                      | Maintenance → Work, first repair |
+| Увага     | "Аварійний ремонт станка"         | Open emergency repairs of faults without a stop, accepted or still within the acceptance deadline                                      | Maintenance → Work, first repair |
+| Увага     | "Прострочене ТО"                  | Planned maintenance past its due date, not yet submitted; "прострочено з 22.09" names the oldest                                       | Maintenance → Work, oldest       |
+| До відома | "Звернення на моєму кроці"        | Open requests waiting for the reader's role                                                                                            | Requests                         |
+| До відома | "Переробка чекає рішення"         | Overtime waiting for approval                                                                                                          | Requests                         |
+| До відома | "ТО чекає перевірки"              | Maintenance the mechanic submitted, awaiting the chief mechanic's decision                                                             | Maintenance → Work, oldest       |
+| До відома | "ТО на найближчі 7 дн."           | Planned maintenance within the first reminder horizon (7 days by default); "найближче — 27.09"                                         | Maintenance → Work, nearest      |
 
 There are no zero cards. Under the cards:
 
@@ -100,6 +105,10 @@ not shown; while loading it shows a spinner, after a failure "Повторити
 - **"Приймання передачі"** — "49 з 50 без зауважень": handover reports of the shift that ended at this
   shift's start, accepted without a dispute, among those already decided; "зі спором" and "чекають"
   are shown separately.
+- **"Обладнання"** — "Зупинено: 1" with each stopped machine and its place, then "ТО сьогодні" with
+  the machines due today ("із зупинкою" when the plan stops the machine) and how many maintenance
+  items are coming up. With nothing stopped it reads "ТО сьогодні: 2" or "Зупинених станків немає". On a
+  day off the tile appears only when a machine is stopped or maintenance is due. Opens Maintenance → Work.
 
 ## "Зони зараз"
 
@@ -115,6 +124,8 @@ shown) and "2 з 3 за графіком". Problem zones come first:
 5. "Працює".
 6. "Не заплановано" — no plan and nobody there; these fold under "Ще зон без плану і людей: N ·
    Показати".
+
+A zone with a stopped machine names it on its card: "Станок зупинено: M-02 Станок пакування".
 
 Planned people follow the assignment zone or, for split assignments, the segment that is current at
 the site's local time. A zone card opens Live shift for that unit, searched by the zone name.
@@ -156,16 +167,19 @@ the reader's scope.
 
 Every block reads its own source with the reader's role and scope:
 
-| Block                                                  | Roles                                                                                                                                 |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Incident cards, "Час до реакції", "Простій зон"        | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER; the time and downtime figures also for HR, PLANNER, CLEANLINESS_CONTROLLER, ACCOUNTANT, AUDITOR |
-| Handover cards and "Приймання передачі"                | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, CLEANLINESS_CONTROLLER; the figure also for HR and AUDITOR                                      |
-| Request cards                                          | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, HR, PLANNER, AUDITOR (by the role's step)                                                       |
-| Overtime, closed without checklist, unscheduled shifts | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER                                                                                                  |
-| "Явка за графіком", "Не прийшли за графіком"           | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, PLANNER, HR                                                                                     |
-| Terminals                                              | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER                                                                                                  |
-| "Зони зараз"                                           | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, HR, PLANNER, CLEANLINESS_CONTROLLER, AUDITOR                                                    |
-| Setup counts                                           | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, HR, PLANNER                                                                                     |
+| Block                                                   | Roles                                                                                                                                                               |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Incident cards, "Час до реакції", "Простій зон"         | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER; the time and downtime figures also for HR, PLANNER, CLEANLINESS_CONTROLLER, ACCOUNTANT, AUDITOR                               |
+| Handover cards and "Приймання передачі"                 | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, CLEANLINESS_CONTROLLER; the figure also for HR and AUDITOR                                                                    |
+| Request cards                                           | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, HR, PLANNER, AUDITOR (by the role's step)                                                                                     |
+| Overtime, closed without checklist, unscheduled shifts  | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER                                                                                                                                |
+| "Явка за графіком", "Не прийшли за графіком"            | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, PLANNER, HR                                                                                                                   |
+| Terminals                                               | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER                                                                                                                                |
+| "Зони зараз"                                            | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, HR, PLANNER, CLEANLINESS_CONTROLLER, AUDITOR                                                                                  |
+| Setup counts                                            | ADMIN, PRODUCTION_HEAD, SHIFT_MASTER, HR, PLANNER                                                                                                                   |
+| Equipment cards, "Обладнання", stopped machine on zones | ADMIN, CHIEF_MECHANIC, PRODUCTION_HEAD, SHIFT_MASTER, PLANNER, AUDITOR, only with the "Обслуговування" module on; "ТО чекає перевірки" for ADMIN and CHIEF_MECHANIC |
+
+A chief mechanic opens the page too and sees the shift line and the equipment blocks only.
 
 Scope applies everywhere: a unit master sees only their unit, a site grant only its site. The same
 limits apply to the section lists, record pages, photo and medical document links, and live updates.
@@ -180,8 +194,8 @@ numbers visible with the failure named.
 ## Typical questions
 
 - **Does the site and unit choice change every card?** The shift line, "Стан зміни", "Зони зараз",
-  "Останні події", "Не прийшли за графіком", terminals, zones in long downtime and the setup counts follow
-  the choice. Incident, handover, request, overtime and closed-without-checklist cards count your whole
+  "Останні події", "Не прийшли за графіком", terminals, zones in long downtime, the equipment cards and
+  the setup counts follow the choice. Incident, handover, request, overtime and closed-without-checklist cards count your whole
   access scope (they are your role's queues); the section they open is filtered to the chosen site/unit.
 - **Why is "Не прийшли" not zero although everyone is here?** Someone came without scanning the QR or
   started work without the bot. Check Live shift; a master can record the arrival there.

@@ -31,6 +31,7 @@ import {
   EquipmentDocumentKind,
   EquipmentState,
   IntervalUnit,
+  MAINTENANCE_VIEWERS,
   MaterialKind,
   MaterialMode,
   NoticeDelivery,
@@ -43,6 +44,7 @@ import {
   WorkStatus,
   WorkType,
   MaterialsReadiness,
+  accessScope,
 } from '@vakhta/domain';
 import { FULL_SCOPE } from '../common/access-scope.js';
 import type { Actor } from '../common/actor.js';
@@ -966,6 +968,70 @@ describe('equipment maintenance: register, manuals, plans, work and emergencies 
         { actor: CHIEF, now: NOW },
       );
       expect(await domainCode(correct(EquipmentState.AVAILABLE))).toBe('EQUIPMENT_STATE_BY_REPAIR');
+    });
+  });
+
+  describe('overview page facts (owner request 2026-09-25)', () => {
+    const at = (date: string) => new Date(`${date}T07:00:00Z`);
+
+    it('sorts open work into buckets by the site day and lists stopped machines', async () => {
+      const planned = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const broken = await services.equipment.create(machineInput('FB-200'), CHIEF, NOW);
+      const { order } = await publishedPlan(planned.id);
+      await services.emergency.createFromPanel(
+        broken.id,
+        { description: 'Jam', stoppedWork: true, safety: false },
+        { actor: CHIEF, now: NOW },
+      );
+      const bucketOf = async (date: string) =>
+        (await services.queries.overview({}, FULL_SCOPE, at(date))).works
+          .filter((work) => work.id === order.id)
+          .map((work) => work.bucket);
+
+      const early = await services.queries.overview({}, FULL_SCOPE, NOW);
+      expect(early.horizonDays).toBe(7);
+      expect(early.works.map((work) => [work.equipment.code, work.bucket])).toEqual([
+        ['FB-200', 'EMERGENCY'],
+      ]);
+      expect(early.stopped).toMatchObject([{ code: 'FB-200', zoneId, location: 'Cups · Line 1' }]);
+      expect(await bucketOf('2026-10-08')).toEqual(['UPCOMING']);
+      expect(await bucketOf(FIRST_DUE_ON)).toEqual(['TODAY']);
+      expect(await bucketOf('2026-10-16')).toEqual(['OVERDUE']);
+      const [today] = (
+        await services.queries.overview({}, FULL_SCOPE, at(FIRST_DUE_ON))
+      ).works.filter((work) => work.id === order.id);
+      expect(today).toMatchObject({ requiresStop: true, plannedOn: FIRST_DUE_ON });
+    });
+
+    it('reads only the reader scope, and a selection outside it reads empty', async () => {
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      await services.emergency.createFromPanel(
+        machine.id,
+        { description: 'Jam', stoppedWork: true, safety: false },
+        { actor: CHIEF, now: NOW },
+      );
+      const unit = one(await testDb.db.select().from(orgUnits).where(eq(orgUnits.id, unitId)));
+      const other = one(
+        await testDb.db
+          .insert(orgUnits)
+          .values({ siteId: unit.siteId, name: 'Packing' })
+          .returning(),
+      );
+      const scope = accessScope(
+        [{ role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: other.id }],
+        MAINTENANCE_VIEWERS,
+      );
+
+      expect(await services.queries.overview({}, scope, NOW)).toMatchObject({
+        works: [],
+        stopped: [],
+      });
+      expect(await services.queries.overview({ orgUnitId: unitId }, scope, NOW)).toMatchObject({
+        works: [],
+        stopped: [],
+      });
+      const selected = await services.queries.overview({ orgUnitId: other.id }, FULL_SCOPE, NOW);
+      expect(selected.works).toEqual([]);
     });
   });
 });

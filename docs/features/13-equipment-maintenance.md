@@ -52,6 +52,14 @@ Three tabs:
   answers, the date and the materials for them. The work goes to review and shows who did it and who
   entered it; photos are not required for such a record.
 
+## On the Overview page
+
+"Огляд" shows the module's facts in the reader's scope: cards for emergency repairs (critical for
+P0/P1, an escalation or a missed acceptance), overdue maintenance, maintenance awaiting review (admin
+and chief mechanic) and maintenance within the first reminder horizon; the "Обладнання" tile with
+stopped machines and today's maintenance; and the stopped machine on its zone card. Every card opens
+the first work order in "Работы".
+
 ## Maintenance plans
 
 A plan says what to do and how often, based on the manual or on a documented plant decision:

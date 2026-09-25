@@ -1,5 +1,5 @@
 import type { ActiveShiftView, MeView, OverviewZone } from '@vakhta/contracts';
-import { TerminalConnectivity } from '@vakhta/domain';
+import { TerminalConnectivity, UPCOMING_MAINTENANCE_DAYS, WebRole } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { handoversApi, incidentsApi, requestsApi, shiftsApi } from '@/api';
 import { Muted } from '@/components/app/page';
@@ -11,6 +11,14 @@ import { setUiState } from '@/lib/ui-store';
 import { useEmployees } from '@/lib/org';
 import { useNavigation, type SectionKey } from '@/navigation';
 import { attentionPermissions, useAttention } from '../model/queries';
+import {
+  equipmentAccess,
+  equipmentHasFacts,
+  equipmentHealth,
+  isEquipmentKey,
+  stoppedByZone,
+  useEquipmentOverview,
+} from '../model/equipment';
 import {
   attentionFilters,
   type OverviewPlanningTarget,
@@ -69,6 +77,11 @@ export function OverviewPage({
   const snapshotQuery = useOverviewSnapshot(me, selection);
   const snapshot = snapshotQuery.data;
   const snapshotEnabled = me.id !== '' && me.roles.length > 0;
+  const machines = equipmentAccess(me);
+  const equipmentQuery = useEquipmentOverview(machines, selection);
+  const equipment = equipmentQuery.data;
+  // A chief mechanic reads only the equipment blocks; the shift tiles never load for them.
+  const readsShift = me.roles.some((grant) => grant.role !== WebRole.CHIEF_MECHANIC);
 
   // One connection per stream; each event marks its list and the snapshot stale (AC-024).
   const liveShifts = useLiveUpdates(shiftsApi.streamUrl(), 'shift', ['shifts'], [['overview']]);
@@ -76,7 +89,8 @@ export function OverviewPage({
     incidentsApi.streamUrl(),
     'incident',
     ['incidents'],
-    [['overview']],
+    // A reported breakdown opens its emergency repair in the same transaction.
+    [['overview'], ['maintenance', 'overview']],
   );
   const liveHandovers = useLiveUpdates(
     handoversApi.streamUrl(),
@@ -106,20 +120,26 @@ export function OverviewPage({
     permissions,
     snapshot: snapshotQuery.isError && !snapshot ? undefined : snapshot,
     snapshotEnabled: snapshotEnabled && !snapshotQuery.isPending,
+    equipment,
+    equipmentAccess: machines,
     now,
   });
   const queue = {
     ...built,
     items: built.items.map((item) => ({ ...item, people: withFaces(item.people, faces) })),
   };
-  const blocks = composition(permissions, snapshot);
+  const blocks = composition(permissions, snapshot, machines.read);
   const setup = setupItems(snapshot);
   const groups = groupByUnit(attention.data.unscheduledPeople).map((g) => ({
     ...g,
     people: withFaces(g.people, faces),
   }));
   const updated =
-    [attention.data.refreshedAt, snapshot ? new Date(snapshotQuery.dataUpdatedAt) : null]
+    [
+      attention.data.refreshedAt,
+      snapshot ? new Date(snapshotQuery.dataUpdatedAt) : null,
+      equipment ? new Date(equipmentQuery.dataUpdatedAt) : null,
+    ]
       .filter((d): d is Date => d !== null)
       .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   const businessDate =
@@ -134,6 +154,7 @@ export function OverviewPage({
   function retry(): void {
     void attention.refresh();
     void snapshotQuery.refetch();
+    if (machines.read) void equipmentQuery.refetch();
   }
 
   function operations(values: Record<string, unknown>, openId: string | null = null): void {
@@ -150,19 +171,16 @@ export function OverviewPage({
   }
 
   function openQueue(item: QueueItem): void {
-    const section = QUEUE_SECTION[item.key];
-    if (
-      section &&
-      item.key !== 'terminalsOffline' &&
-      item.key !== 'longDowntime' &&
-      item.key !== 'notArrived'
-    ) {
-      setUiState(attentionFilters(item.key, attention.data, selection));
-      go(section, attention.data.firstId[item.key]);
+    const key = item.key;
+    if (isEquipmentKey(key)) return go('maintenance', item.openId ? `work/${item.openId}` : 'work');
+    const section = QUEUE_SECTION[key];
+    if (key === 'terminalsOffline') return openTerminals(TerminalConnectivity.OFFLINE);
+    if (key === 'longDowntime') return openDowntime(item);
+    if (section && key !== 'notArrived') {
+      setUiState(attentionFilters(key, attention.data, selection));
+      go(section, attention.data.firstId[key]);
       return;
     }
-    if (item.key === 'terminalsOffline') return openTerminals(TerminalConnectivity.OFFLINE);
-    if (item.key === 'longDowntime') return openDowntime(item);
     // Not arrived: the live-shift screen lists exactly these people, where a master can start
     // their shift or write to them.
     operations({ 'operations.group': 'NOT_ARRIVED' });
@@ -189,6 +207,7 @@ export function OverviewPage({
     if (target === 'staffing') return operations({});
     if (target === 'downtime') return operations({ 'operations.group': 'DOWNTIME' });
     if (target === 'schedule') return go('schedule');
+    if (target === 'equipment') return go('maintenance', 'work');
     if (target === 'timeToAction') {
       setUiState(attentionFilters('openIncidents', attention.data, selection));
       setUiState({
@@ -242,7 +261,22 @@ export function OverviewPage({
   // reported as unchecked by the queue, never as an endless loader.
   const queueLoading =
     (attention.queryState.isPending && attention.queryState.isFetching) ||
-    (snapshotEnabled && snapshotQuery.isPending && snapshotQuery.isFetching);
+    (snapshotEnabled && snapshotQuery.isPending && snapshotQuery.isFetching) ||
+    (machines.read && equipmentQuery.isPending && equipmentQuery.isFetching);
+  const equipmentFailed = equipmentQuery.isError || equipmentQuery.fetchStatus === 'paused';
+  const machineHealth = equipment ? equipmentHealth(equipment) : undefined;
+  const shiftTiles = blocks.health || (snapshotState !== 'ready' && readsShift);
+  // Without a running shift the tile appears only with something to say (owner, 2026-09-13).
+  const equipmentShown =
+    blocks.equipment &&
+    (shiftTiles || (machineHealth ? equipmentHasFacts(machineHealth) : equipmentFailed));
+  const equipmentTile = equipmentShown
+    ? {
+        health: machineHealth,
+        state: equipmentFailed ? ('failed' as const) : ('loading' as const),
+        onRetry: () => void equipmentQuery.refetch(),
+      }
+    : null;
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -261,23 +295,34 @@ export function OverviewPage({
         <ActionQueue
           queue={queue}
           loading={queueLoading}
-          escalationMinutes={snapshot?.downtimeEscalationMinutes ?? 15}
+          labelValues={{
+            escalationMinutes: snapshot?.downtimeEscalationMinutes ?? 15,
+            horizonDays: equipment?.horizonDays ?? UPCOMING_MAINTENANCE_DAYS,
+          }}
           now={now}
           onOpen={openQueue}
           onRetry={retry}
         />
       )}
-      {(blocks.health || snapshotState !== 'ready') && (
+      {(shiftTiles || equipmentShown) && (
         <ShiftHealth
           snapshot={snapshot}
           state={snapshotState}
+          shiftTiles={shiftTiles}
+          equipment={equipmentTile}
           faces={faces}
           onOpen={openHealth}
           onRetry={retry}
         />
       )}
       {blocks.zones && snapshot?.zones && (
-        <ZoneBoard zones={snapshot.zones} now={now} faces={faces} onOpen={openZone} />
+        <ZoneBoard
+          zones={snapshot.zones}
+          stopped={stoppedByZone(equipment)}
+          now={now}
+          faces={faces}
+          onOpen={openZone}
+        />
       )}
       {permissions.employees && attentionSites.length > 0 && (
         <TeamToday

@@ -10,6 +10,7 @@ import {
   LibraryDocumentView,
   MaintenanceCalendarView,
   MaintenancePolicyView,
+  MaintenanceOverview,
   MaintenanceSummary,
   MechanicOption,
   MediaLinkView,
@@ -31,6 +32,7 @@ import {
   type DocumentLinkInput,
   type DocumentUploadQuery,
   type EquipmentQuery,
+  type MaintenanceOverviewQuery,
   type WorkQuery,
 } from '@vakhta/contracts';
 import { apiRequest } from '@/shared/api';
@@ -65,6 +67,8 @@ async function send<T>(
 
 export const maintenanceApi = {
   summary: (signal: Signal) => read(MaintenanceSummary, `${root}/summary`, { signal }),
+  overview: (query: MaintenanceOverviewQuery, signal: Signal) =>
+    read(MaintenanceOverview, `${root}/overview`, { params: query, signal }),
   policy: (signal: Signal) => read(MaintenancePolicyView, `${root}/policy`, { signal }),
   mechanics: (signal: Signal) => read(z.array(MechanicOption), `${root}/mechanics`, { signal }),
   equipment: (query: EquipmentQuery, signal: Signal) =>

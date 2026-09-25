@@ -11,6 +11,7 @@ import { cn } from 'cn';
 import { AvatarStack } from '@/components/app/avatar-stack';
 import { Muted, Section } from '@/components/app/page';
 import { Button } from '@/components/ui/button';
+import { formatNearDate } from '@/entities/maintenance';
 import { formatDuration, formatTime } from '@/lib/format';
 import { LoadingState } from '@/shared/ui/loading-state';
 import {
@@ -39,11 +40,19 @@ const COUNT_TONE: Record<Tier, string> = {
   info: 'text-foreground',
 };
 
-export function queueLabel(key: QueueKey, escalationMinutes: number): string {
+/** Values some card labels carry: the downtime escalation time and the maintenance horizon. */
+export interface QueueLabelValues {
+  readonly escalationMinutes: number;
+  readonly horizonDays: number;
+}
+
+export function queueLabel(key: QueueKey, values: QueueLabelValues): string {
   const items = overviewText().items;
-  return key === 'longDowntime'
-    ? format(items.longDowntime, { duration: formatDuration(escalationMinutes) })
-    : items[key];
+  if (key === 'longDowntime')
+    return format(items.longDowntime, { duration: formatDuration(values.escalationMinutes) });
+  if (key === 'maintenanceUpcoming')
+    return format(items.maintenanceUpcoming, { days: values.horizonDays });
+  return items[key];
 }
 
 /**
@@ -53,20 +62,20 @@ export function queueLabel(key: QueueKey, escalationMinutes: number): string {
 export function ActionQueue({
   queue,
   loading,
-  escalationMinutes,
+  labelValues,
   now,
   onOpen,
   onRetry,
 }: {
   readonly queue: Queue;
   readonly loading: boolean;
-  readonly escalationMinutes: number;
+  readonly labelValues: QueueLabelValues;
   readonly now: Date;
   readonly onOpen: (item: QueueItem) => void;
   readonly onRetry: () => void;
 }) {
   const c = overviewText();
-  const label = (key: QueueKey) => queueLabel(key, escalationMinutes);
+  const label = (key: QueueKey) => queueLabel(key, labelValues);
   return (
     <Section title={c.queueTitle} hint={c.queueHint}>
       {loading && queue.items.length === 0 ? (
@@ -128,32 +137,38 @@ export function ActionQueue({
 }
 
 function RowMeta({ item, now }: { readonly item: QueueItem; readonly now: Date }) {
-  const c = overviewText();
-  const parts: string[] = [];
-  if (item.deadlineAt) {
-    const diff = new Date(item.deadlineAt).getTime() - now.getTime();
-    parts.push(
-      diff < 0
-        ? format(c.overdueBy, { duration: formatAge(Math.floor(-diff / 60_000)) })
-        : format(c.dueIn, { duration: formatAge(Math.floor(diff / 60_000)) }),
-    );
-  }
-  if (item.ageKind === 'plannedFrom' && item.oldestAt)
-    parts.push(format(c.plannedFrom, { time: formatTime(item.oldestAt) }));
-  else if (item.ageKind === 'lastSeen')
-    parts.push(
-      item.oldestAt
-        ? format(c.lastSeen, { duration: formatAge(minutesBetween(item.oldestAt, now)) })
-        : c.neverSeen,
-    );
-  else if (item.oldestAt)
-    parts.push(format(c.oldest, { duration: formatAge(minutesBetween(item.oldestAt, now)) }));
+  const parts = [deadlineLine(item, now), ageLine(item, now)].filter(
+    (part): part is string => part !== null,
+  );
   if (parts.length === 0) return null;
   return (
     <span className="text-sm break-words text-muted-foreground tabular-nums">
       {parts.join(' · ')}
     </span>
   );
+}
+
+function deadlineLine(item: QueueItem, now: Date): string | null {
+  if (!item.deadlineAt) return null;
+  const c = overviewText();
+  const diff = new Date(item.deadlineAt).getTime() - now.getTime();
+  return diff < 0
+    ? format(c.overdueBy, { duration: formatAge(Math.floor(-diff / 60_000)) })
+    : format(c.dueIn, { duration: formatAge(Math.floor(diff / 60_000)) });
+}
+
+/** The age line by its kind: a business date, a planned time, or an instant ago. */
+function ageLine(item: QueueItem, now: Date): string | null {
+  const c = overviewText();
+  if (item.ageKind === 'overdueSince' || item.ageKind === 'nearestOn') {
+    const template = item.ageKind === 'overdueSince' ? c.overdueSince : c.nearestOn;
+    return item.dayOn ? format(template, { date: formatNearDate(item.dayOn) }) : null;
+  }
+  if (item.ageKind === 'plannedFrom')
+    return item.oldestAt ? format(c.plannedFrom, { time: formatTime(item.oldestAt) }) : null;
+  if (!item.oldestAt) return item.ageKind === 'lastSeen' ? c.neverSeen : null;
+  const duration = formatAge(minutesBetween(item.oldestAt, now));
+  return format(item.ageKind === 'lastSeen' ? c.lastSeen : c.oldest, { duration });
 }
 
 /** What was checked and found clear, and what could not be checked: never a silent all-clear. */

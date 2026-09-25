@@ -1,5 +1,16 @@
-import type { OverviewEvent, OverviewSnapshot } from '@vakhta/contracts';
-import { ShiftPeriod } from '@vakhta/domain';
+import type {
+  MaintenanceOverview,
+  MaintenanceOverviewWork,
+  OverviewEvent,
+  OverviewSnapshot,
+} from '@vakhta/contracts';
+import {
+  OverviewWorkBucket,
+  ShiftPeriod,
+  WorkPriority,
+  WorkStatus,
+  WorkType,
+} from '@vakhta/domain';
 
 /**
  * Synthetic Overview answers for the preview shell (spec 004 screenshots): a running day shift
@@ -308,12 +319,107 @@ export function overviewEventsFixture(): OverviewEvent[] {
 }
 
 /** Answers Overview requests in the preview; null for any other path. */
+const kyivDay = (offset: number) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv' }).format(
+    new Date(Date.now() + offset * 86_400_000),
+  );
+
+const MACHINE_PLACE = {
+  siteId: SITE,
+  orgUnitId: UNIT,
+  zoneId: ZONE,
+  location: 'Цех стаканів · Токарний №2',
+};
+
+const machineFixture = (n: number, code: string, name: string) => ({
+  id: `a0000000-0000-4000-8000-0000000001${String(n).padStart(2, '0')}`,
+  code,
+  name,
+});
+
+function workFixture(
+  n: number,
+  over: Partial<MaintenanceOverviewWork> & Pick<MaintenanceOverviewWork, 'bucket' | 'equipment'>,
+): MaintenanceOverviewWork {
+  return {
+    ...MACHINE_PLACE,
+    id: `a0000000-0000-4000-8000-0000000002${String(n).padStart(2, '0')}`,
+    number: 1000 + n,
+    type: WorkType.PLANNED_MAINTENANCE,
+    priority: WorkPriority.P3,
+    status: WorkStatus.ASSIGNED,
+    dueOn: null,
+    plannedOn: null,
+    reportedAt: null,
+    ackDueAt: null,
+    acceptedAt: null,
+    escalatedAt: null,
+    submittedAt: null,
+    requiresStop: false,
+    ...over,
+  };
+}
+
+const plannedOn = (offset: number) => ({ dueOn: kyivDay(offset), plannedOn: kyivDay(offset) });
+
+/** Equipment facts of the Overview (owner request 2026-09-25): a stopped packer, ТО due and coming. */
+function maintenanceOverviewFixture(mode: string | null): MaintenanceOverview {
+  if (mode === 'clear') return { horizonDays: 7, works: [], stopped: [] };
+  const packer = machineFixture(1, 'M-02', 'Станок пакування стаканів');
+  const now = Date.now();
+  const { UPCOMING } = OverviewWorkBucket;
+  return {
+    horizonDays: 7,
+    works: [
+      workFixture(1, {
+        bucket: OverviewWorkBucket.EMERGENCY,
+        equipment: packer,
+        type: WorkType.EMERGENCY_REPAIR,
+        priority: WorkPriority.P1,
+        reportedAt: iso(now - 40 * 60_000),
+        ackDueAt: iso(now - 35 * 60_000),
+        acceptedAt: iso(now - 37 * 60_000),
+      }),
+      workFixture(2, {
+        bucket: OverviewWorkBucket.OVERDUE,
+        equipment: machineFixture(2, 'M-05', 'Друга стінка стаканів'),
+        ...plannedOn(-3),
+      }),
+      workFixture(3, {
+        bucket: OverviewWorkBucket.REVIEW,
+        equipment: machineFixture(3, 'M-01', 'Перша стінка стаканів'),
+        status: WorkStatus.IN_REVIEW,
+        submittedAt: iso(now - 5 * 3_600_000),
+        ...plannedOn(0),
+      }),
+      workFixture(4, {
+        bucket: OverviewWorkBucket.TODAY,
+        equipment: machineFixture(4, 'M-07', 'Вибирання'),
+        requiresStop: true,
+        ...plannedOn(0),
+      }),
+      workFixture(5, {
+        bucket: UPCOMING,
+        equipment: machineFixture(5, 'M-03', 'Друга стінка стаканів'),
+        ...plannedOn(2),
+      }),
+      workFixture(6, {
+        bucket: UPCOMING,
+        equipment: machineFixture(6, 'M-04', 'Станок упаковки стаканів'),
+        ...plannedOn(5),
+      }),
+    ],
+    stopped: [{ ...MACHINE_PLACE, ...packer, since: iso(now - 40 * 60_000) }],
+  };
+}
+
 export function overviewPreview(
   path: string,
   search: string,
   unitScoped: boolean,
 ): Promise<Response> | Response | null {
   const mode = new URLSearchParams(search || location.search).get('overview');
+  if (path === '/admin/maintenance/overview') return json(maintenanceOverviewFixture(mode));
   if (path === '/admin/overview') {
     if (mode === 'failed')
       return json({ statusCode: 503, code: 'UNAVAILABLE', message: 'Unavailable' }, 503);

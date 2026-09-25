@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import type { OverviewSnapshot } from '@vakhta/contracts';
+import type {
+  MaintenanceOverview,
+  MaintenanceOverviewWork,
+  OverviewSnapshot,
+} from '@vakhta/contracts';
 import { buildAttention } from './attention';
+import { stoppedByZone } from './equipment';
 import { buildActionQueue, composition, setupItems } from './priority';
-import { ShiftPeriod } from '@vakhta/domain';
+import {
+  OverviewWorkBucket,
+  ShiftPeriod,
+  WorkPriority,
+  WorkStatus,
+  WorkType,
+} from '@vakhta/domain';
 
 const all = { shifts: true, incidents: true, handovers: true, requests: true, overtime: true };
 const now = new Date('2026-09-13T09:00:00Z');
@@ -226,5 +237,150 @@ describe('action queue priority (spec 004 D-08, AC-009–AC-012)', () => {
     expect(composition(all, running)).toMatchObject({ health: true });
     const incident = { ...dayOff, timeToAction: { reported: 1 } } as unknown as OverviewSnapshot;
     expect(composition(all, incident).health).toBe(true);
+  });
+});
+
+describe('equipment cards (owner request 2026-09-25)', () => {
+  const work = (over: Partial<MaintenanceOverviewWork>): MaintenanceOverviewWork => ({
+    id: 'w',
+    number: 1001,
+    type: WorkType.PLANNED_MAINTENANCE,
+    priority: WorkPriority.P3,
+    status: WorkStatus.ASSIGNED,
+    bucket: OverviewWorkBucket.UPCOMING,
+    equipment: { id: 'm1', code: 'FB-100', name: 'Cup machine' },
+    siteId: 's',
+    orgUnitId: 'u',
+    zoneId: 'z',
+    location: 'Shop · Lathe 2',
+    dueOn: '2026-09-15',
+    plannedOn: '2026-09-15',
+    reportedAt: null,
+    ackDueAt: null,
+    acceptedAt: null,
+    escalatedAt: null,
+    submittedAt: null,
+    requiresStop: false,
+    ...over,
+  });
+  const repair = work({
+    id: 'repair',
+    type: WorkType.EMERGENCY_REPAIR,
+    priority: WorkPriority.P2,
+    bucket: OverviewWorkBucket.EMERGENCY,
+    equipment: { id: 'm2', code: 'FB-200', name: 'Packer' },
+    reportedAt: '2026-09-13T08:50:00Z',
+    ackDueAt: '2026-09-13T09:20:00Z',
+  });
+  const data: MaintenanceOverview = {
+    horizonDays: 7,
+    works: [
+      repair,
+      work({ id: 'late', bucket: OverviewWorkBucket.OVERDUE, dueOn: '2026-09-10' }),
+      work({
+        id: 'review',
+        bucket: OverviewWorkBucket.REVIEW,
+        submittedAt: '2026-09-13T07:00:00Z',
+      }),
+      work({ id: 'soon', plannedOn: '2026-09-16' }),
+      work({ id: 'sooner', plannedOn: '2026-09-14' }),
+    ],
+    stopped: [],
+  };
+  const reader = { read: true, review: false };
+  const chief = { read: true, review: true };
+  const queue = (equipment: MaintenanceOverview | undefined, access = reader) =>
+    buildActionQueue({
+      attention: buildAttention(
+        {
+          shifts: null,
+          incidents: null,
+          handovers: null,
+          requests: null,
+          overtime: null,
+          employees: null,
+          org: null,
+        },
+        now,
+      ),
+      permissions: {
+        shifts: false,
+        incidents: false,
+        handovers: false,
+        requests: false,
+        overtime: false,
+      },
+      snapshot: undefined,
+      snapshotEnabled: false,
+      equipment,
+      equipmentAccess: access,
+      now,
+    });
+
+  it('lists repairs, overdue and approaching maintenance with the record each opens', () => {
+    const { items } = queue(data);
+    expect(items.map((i) => [i.key, i.tier, i.count, i.openId])).toEqual([
+      ['maintenanceEmergency', 'warning', 1, 'repair'],
+      ['maintenanceOverdue', 'warning', 1, 'late'],
+      ['maintenanceUpcoming', 'info', 2, 'sooner'],
+    ]);
+    expect(items[0]).toMatchObject({ deadlineAt: '2026-09-13T09:20:00Z', people: [{ id: 'm2' }] });
+    expect(items[1]).toMatchObject({ ageKind: 'overdueSince', dayOn: '2026-09-10' });
+    expect(items[2]).toMatchObject({
+      ageKind: 'nearestOn',
+      dayOn: '2026-09-14',
+      people: [{ id: 'm1' }],
+    });
+  });
+
+  it('shows the review queue only to those who review', () => {
+    expect(queue(data).items.map((i) => i.key)).not.toContain('maintenanceReview');
+    expect(queue(data, chief).items.map((i) => i.key)).toContain('maintenanceReview');
+  });
+
+  it('turns a repair past its acceptance deadline critical', () => {
+    const late = {
+      ...data,
+      works: [{ ...repair, ackDueAt: '2026-09-13T08:59:00Z' }],
+    };
+    expect(queue(late).items[0]).toMatchObject({ key: 'maintenanceEmergency', tier: 'critical' });
+  });
+
+  it('names empty sources checked and a missing source unknown, never all clear', () => {
+    expect(queue({ ...data, works: [] }).checked).toEqual([
+      'maintenanceEmergency',
+      'maintenanceOverdue',
+      'maintenanceUpcoming',
+    ]);
+    expect(queue(undefined).unknown).toEqual([
+      'maintenanceEmergency',
+      'maintenanceOverdue',
+      'maintenanceUpcoming',
+    ]);
+    expect(queue(undefined, { read: false, review: false })).toEqual({
+      items: [],
+      checked: [],
+      unknown: [],
+    });
+  });
+
+  it('marks stopped machines on their zones', () => {
+    const machine = {
+      id: 'm2',
+      code: 'FB-200',
+      name: 'Packer',
+      siteId: 's',
+      orgUnitId: 'u',
+      location: 'Shop',
+      since: '2026-09-13T08:50:00Z',
+    };
+    const byZone = stoppedByZone({
+      ...data,
+      stopped: [
+        { ...machine, zoneId: 'z' },
+        { ...machine, id: 'm3', zoneId: null },
+      ],
+    });
+    expect([...byZone]).toEqual([['z', ['FB-200 Packer']]]);
   });
 });

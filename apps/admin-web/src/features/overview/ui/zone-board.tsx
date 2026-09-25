@@ -1,5 +1,6 @@
 import type { OverviewZone, ZoneStatusCode } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
+import { WrenchIcon } from 'lucide-react';
 import { EmptyState, Muted, Section, StatusPill, type Tone } from '@/components/app/page';
 import { Button } from '@/components/ui/button';
 import { usePersistentState } from '@/lib/ui-store';
@@ -22,11 +23,14 @@ const STATUS_TONE: Record<ZoneStatusCode, Tone> = {
  */
 export function ZoneBoard({
   zones,
+  stopped,
   now,
   faces,
   onOpen,
 }: {
   readonly zones: readonly OverviewZone[];
+  /** Stopped machine names by zone; empty when the reader cannot read maintenance. */
+  readonly stopped: ReadonlyMap<string, readonly string[]>;
   readonly now: Date;
   readonly faces: Faces;
   readonly onOpen: (zone: OverviewZone) => void;
@@ -48,6 +52,7 @@ export function ZoneBoard({
               <li key={z.zoneId} className="min-w-0">
                 <ZoneCard
                   zone={z}
+                  stopped={stopped.get(z.zoneId) ?? []}
                   now={now}
                   faces={faces}
                   showUnit={multipleUnits}
@@ -82,12 +87,14 @@ export function ZoneBoard({
  */
 function ZoneCard({
   zone: z,
+  stopped,
   now,
   faces,
   showUnit,
   onOpen,
 }: {
   readonly zone: OverviewZone;
+  readonly stopped: readonly string[];
   readonly now: Date;
   readonly faces: Faces;
   readonly showUnit: boolean;
@@ -109,6 +116,12 @@ function ZoneCard({
       </StatusPill>
       <span className="text-sm leading-snug font-medium break-words">{z.zoneName}</span>
       {showUnit && <Muted className="text-xs break-words">{z.orgUnitName}</Muted>}
+      {stopped.length > 0 && (
+        <span className="inline-flex items-start gap-1 text-xs font-medium break-words text-red-700 dark:text-red-300">
+          <WrenchIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          {format(c.zoneStopped, { names: stopped.join(', ') })}
+        </span>
+      )}
       <span className="mt-auto flex flex-col gap-1 text-xs text-muted-foreground tabular-nums">
         {z.planned > 0 && (
           <span>{format(c.zonePeople, { present: z.present, planned: z.planned })}</span>

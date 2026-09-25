@@ -1,7 +1,14 @@
-import type { OverviewSnapshot } from '@vakhta/contracts';
+import type { MaintenanceOverview, OverviewSnapshot } from '@vakhta/contracts';
 import type { StackedPerson } from '@/components/app/avatar-stack';
 import type { Attention } from './attention';
 import type { AttentionKey } from './destination';
+import {
+  equipmentCardKeys,
+  equipmentCards,
+  machinesOf,
+  type EquipmentAccess,
+  type EquipmentQueueKey,
+} from './equipment';
 
 export type Tier = 'critical' | 'warning' | 'info';
 export const TIERS: readonly Tier[] = ['critical', 'warning', 'info'];
@@ -21,7 +28,8 @@ export type QueueKey =
     >
   | 'terminalsOffline'
   | 'longDowntime'
-  | 'notArrived';
+  | 'notArrived'
+  | EquipmentQueueKey;
 
 export interface QueueItem {
   readonly key: QueueKey;
@@ -33,7 +41,11 @@ export interface QueueItem {
   readonly deadlineAt: string | null;
   readonly people: readonly StackedPerson[];
   /** Kind of the age line, when the age means something more specific than "waiting". */
-  readonly ageKind: 'waiting' | 'plannedFrom' | 'lastSeen';
+  readonly ageKind: 'waiting' | 'plannedFrom' | 'lastSeen' | 'overdueSince' | 'nearestOn';
+  /** Business date of a day-based age line ("overdue since", "next on"). */
+  readonly dayOn?: string | null;
+  /** The record a click opens, for cards whose source is not an attention list. */
+  readonly openId?: string | null;
 }
 
 export interface ActionQueue {
@@ -81,6 +93,9 @@ export function buildActionQueue(input: {
   /** Undefined while the snapshot is loading or failed; null sections are not permitted. */
   readonly snapshot: OverviewSnapshot | undefined;
   readonly snapshotEnabled: boolean;
+  /** Equipment facts; undefined while loading or failed. */
+  readonly equipment?: MaintenanceOverview | undefined;
+  readonly equipmentAccess?: EquipmentAccess;
   readonly now: Date;
 }): ActionQueue {
   const { attention, permissions, snapshot, now } = input;
@@ -167,6 +182,13 @@ export function buildActionQueue(input: {
       });
   }
 
+  if (input.equipmentAccess) {
+    const equipment = equipmentQueue(input.equipment, input.equipmentAccess, now);
+    items.push(...equipment.items);
+    checked.push(...equipment.checked);
+    unknown.push(...equipment.unknown);
+  }
+
   const rank = (tier: Tier) => TIERS.indexOf(tier);
   items.sort(
     (a, b) =>
@@ -175,6 +197,36 @@ export function buildActionQueue(input: {
       time(a.oldestAt) - time(b.oldestAt),
   );
   return { items, checked, unknown };
+}
+
+/** Equipment cards (owner request 2026-09-25): repairs, overdue, review and approaching maintenance. */
+function equipmentQueue(
+  data: MaintenanceOverview | undefined,
+  access: EquipmentAccess,
+  now: Date,
+): ActionQueue {
+  if (!access.read) return { items: [], checked: [], unknown: [] };
+  if (!data) return { items: [], checked: [], unknown: equipmentCardKeys(access) };
+  const items: QueueItem[] = [];
+  const checked: QueueKey[] = [];
+  for (const card of equipmentCards(data, access, now)) {
+    if (card.works.length === 0) {
+      checked.push(card.key);
+      continue;
+    }
+    items.push({
+      key: card.key,
+      tier: card.tier,
+      count: card.works.length,
+      oldestAt: card.oldestAt,
+      deadlineAt: card.deadlineAt,
+      people: machinesOf(card.works),
+      ageKind: card.ageKind,
+      dayOn: card.dayOn,
+      openId: card.works[0]?.id ?? null,
+    });
+  }
+  return { items, checked, unknown: [] };
 }
 
 /** Setup and onboarding debt (spec 004 FR-005): never mixed with the live queue. */
@@ -196,7 +248,9 @@ export function setupItems(snapshot: OverviewSnapshot | undefined): readonly Set
 /** Which blocks a reader sees (spec 004 D-09): a block appears only when its sources are readable. */
 export interface OverviewComposition {
   readonly queue: boolean;
+  /** The four shift tiles; equipment has its own tile that does not depend on a running shift. */
   readonly health: boolean;
+  readonly equipment: boolean;
   readonly zones: boolean;
   readonly feed: boolean;
   readonly setup: boolean;
@@ -207,9 +261,13 @@ export interface OverviewComposition {
 export function composition(
   permissions: QueuePermissions,
   snapshot: OverviewSnapshot | undefined,
+  equipment = false,
 ): OverviewComposition {
   const queue =
-    Object.values(permissions).some(Boolean) || !!snapshot?.terminals || !!snapshot?.staffing;
+    Object.values(permissions).some(Boolean) ||
+    equipment ||
+    !!snapshot?.terminals ||
+    !!snapshot?.staffing;
   // A day off with nobody planned and nothing recorded has no health to report: hide the block
   // rather than four "nothing" tiles (owner, 2026-09-13). Recorded facts still show it.
   const shiftRuns = !!snapshot?.contexts.some(
@@ -230,5 +288,13 @@ export function composition(
   const zones = !!snapshot?.zones?.some((z) => z.status !== 'IDLE');
   const feed = !!snapshot && (snapshot.timeToAction !== null || snapshot.handover !== null);
   const setup = !!snapshot?.setup;
-  return { queue, health, zones, feed, setup, linksOnly: !!snapshot && !queue && !zones };
+  return {
+    queue,
+    health,
+    equipment,
+    zones,
+    feed,
+    setup,
+    linksOnly: !!snapshot && !queue && !zones,
+  };
 }

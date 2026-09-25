@@ -181,3 +181,17 @@ filter and, for one zone, searches that zone. "Закриті без чек-ли
 "Закриті" filter with the counted shift expanded. Audited in preview: terminals, checklists,
 incidents, requests and overtime already filter to or highlight their record. Evidence: shift
 service testcontainers test, overview tests, preview screenshots.
+
+## Equipment facts (owner request 2026-09-25)
+
+`GET admin/maintenance/overview?siteId&orgUnitId` (maintenance module guard, `MAINTENANCE_VIEWERS`;
+the selection narrows the scope instead of being rejected, because a mixed-role reader's Overview options
+may reach places outside maintenance) returns open work with a bucket and the stopped machines.
+The pure rule `overviewWorkBucket` in `packages/domain/src/maintenance/overview.ts` decides the bucket
+per site day: emergency, review, overdue (`isOverdue`), today (`plannedOn <= today`) or upcoming
+(within the largest tenant reminder offset). `emergencyIsCritical` sets the card tier. The panel reads
+it through `maintenanceQueries.overview`, polls every minute and refreshes on incident events, because
+a report opens its repair in the same transaction. `model/equipment.ts` builds the cards, tile and zone
+marks; a missing read names the cards "Не вдалося перевірити". `CHIEF_MECHANIC` joined
+`OVERVIEW_READERS`; every snapshot section keeps its own roles, so the chief mechanic reads only the
+shift context. Evidence: domain tests, API integration tests (buckets across dates, scope, selection outside scope reads empty, chief mechanic sections), panel queue and page tests, desktop and mobile preview screenshots.

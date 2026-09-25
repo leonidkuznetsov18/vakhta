@@ -7,21 +7,12 @@ import {
 } from '@vakhta/contracts';
 import { CurrentUser, Roles, WebAuthGuard, type WebUser } from '../auth/web-auth.guard.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
-import { OverviewService } from './overview.service.js';
+import { OVERVIEW_READERS, OverviewService } from './overview.service.js';
 
 /** Overview command center (spec 004): the current shift in the reader's granted scope. */
 @Controller('admin/overview')
 @UseGuards(WebAuthGuard)
-@Roles(
-  'ADMIN',
-  'PRODUCTION_HEAD',
-  'SHIFT_MASTER',
-  'HR',
-  'PLANNER',
-  'CLEANLINESS_CONTROLLER',
-  'ACCOUNTANT',
-  'AUDITOR',
-)
+@Roles(...OVERVIEW_READERS)
 export class AdminOverviewController {
   constructor(private readonly overview: OverviewService) {}
 
