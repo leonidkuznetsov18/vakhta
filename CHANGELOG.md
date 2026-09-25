@@ -1,3 +1,13 @@
+## [1.34.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.33.0...v1.34.0) (2026-09-25)
+
+### Features
+
+* **telegram:** close a repair with what was done, the cause and the parts used ([b1be88e](https://github.com/leonidkuznetsov18/vakhta/commit/b1be88e4cef3284c1f156be5b3d1eb4a48b6fe0e))
+
+### Bug fixes
+
+* **maintenance:** land the next cycle after the accepted due date when work is done early ([c4a3a1d](https://github.com/leonidkuznetsov18/vakhta/commit/c4a3a1d282de530ca7dc4883836a7a37eefd0ded))
+
 ## [1.33.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.32.1...v1.33.0) (2026-09-24)
 
 ### Features
