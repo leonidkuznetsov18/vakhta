@@ -62,6 +62,7 @@ import {
   type NotArrivedRow,
   type OperationsRow,
 } from './rows.ts';
+import { RichText } from '@/shared/ui/rich-text';
 
 const all = messages(currentLocale());
 const o = all.admin.operations;
@@ -785,7 +786,7 @@ function DetailPanel({
               <code className="rounded bg-muted px-1 text-xs">{e.type}</code>
               <span className="tabular-nums">{formatTime(e.occurredAt)}</span>
               {e.actorType && <Muted>· {e.actorType}</Muted>}
-              {e.comment && <p className="w-full whitespace-pre-wrap">{e.comment}</p>}
+              {e.comment && <RichText text={e.comment} className="w-full" />}
             </li>
           ))}
         </ul>

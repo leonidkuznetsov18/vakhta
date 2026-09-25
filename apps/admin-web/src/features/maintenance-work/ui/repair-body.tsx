@@ -22,6 +22,7 @@ import {
 } from '../model/work-view';
 import { DeliveryFailures, DeliveryStatusPill } from './work-deliveries';
 import { WorkField } from './work-field';
+import { RichText } from '@/shared/ui/rich-text';
 
 function ackText(ackDueAt: string, now: Date): string {
   const t = maintenanceMessages();
@@ -68,7 +69,7 @@ function ReportQuote({ work }: { readonly work: WorkDetail }) {
   ].filter(Boolean);
   return (
     <div className="rounded-md border bg-muted/40 p-3 text-sm">
-      <p className="font-medium whitespace-pre-line break-words">«{work.description}»</p>
+      <RichText text={`«${work.description}»`} className="font-medium" />
       <p className="text-xs text-muted-foreground">{facts.join(' · ')}</p>
     </div>
   );
@@ -115,7 +116,7 @@ function EntryText({ entry }: { readonly entry: TimelineEntry }) {
         {event.actor ? <span className="text-muted-foreground"> · {event.actor}</span> : null}
       </div>
       {event.comment ? (
-        <div className="text-xs whitespace-pre-line text-muted-foreground">{event.comment}</div>
+        <RichText text={event.comment} className="text-xs text-muted-foreground" />
       ) : null}
     </>
   );

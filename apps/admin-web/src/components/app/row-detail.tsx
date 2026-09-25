@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { RichText } from '@/shared/ui/rich-text';
 
 /** Details keep natural height without contributing to the parent table's column widths. */
 export function RowDetail({ children }: { children: ReactNode }) {
@@ -28,9 +29,9 @@ export function ScrollableText({ label, text }: { label: string; text: string })
       role="region"
       aria-label={label}
       tabIndex={0}
-      className="max-h-60 min-w-0 max-w-prose overflow-y-auto rounded-md border bg-muted/30 p-3 text-base leading-relaxed md:text-sm whitespace-pre-wrap [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="max-h-60 min-w-0 max-w-prose overflow-y-auto rounded-md border bg-muted/30 p-3 text-base leading-relaxed md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {text}
+      <RichText text={text} />
     </div>
   );
 }

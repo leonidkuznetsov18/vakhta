@@ -12,6 +12,7 @@ import { currentLocale } from '@/i18n';
 import { Textarea } from '@/components/ui/textarea';
 import { incidentDetailView } from '../model/detail';
 import type { IncidentWorkspaceModel } from '../model/workspace';
+import { RichText } from '@/shared/ui/rich-text';
 
 const all = messages(currentLocale());
 const i = all.admin.incidents;
@@ -82,18 +83,18 @@ export function IncidentDetail({
                     {all.incidents.statuses[h.toStatus]}
                     <Muted>{` · ${h.actorType}`}</Muted>
                     {h.rootCause && (
-                      <p className="whitespace-pre-wrap">
-                        <strong>{i.rootCause}: </strong>
-                        {h.rootCause}
-                      </p>
+                      <div>
+                        <strong>{i.rootCause}:</strong>
+                        <RichText text={h.rootCause} />
+                      </div>
                     )}
                     {h.resolution && (
-                      <p className="whitespace-pre-wrap">
-                        <strong>{i.resolution}: </strong>
-                        {h.resolution}
-                      </p>
+                      <div>
+                        <strong>{i.resolution}:</strong>
+                        <RichText text={h.resolution} />
+                      </div>
                     )}
-                    {h.comment && <p className="whitespace-pre-wrap">{h.comment}</p>}
+                    {h.comment && <RichText text={h.comment} />}
                   </li>
                 ))}
               </ul>

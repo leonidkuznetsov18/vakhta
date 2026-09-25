@@ -167,6 +167,28 @@ Observed and accepted: an employee without a locale gets notices in the tenant's
 the first bot contact sets it; the seeded pause reasons are Russian labels; the card in the panel
 refreshes on focus, so a bot action can take a few seconds to show.
 
+### Second production review (2026-09-25)
+
+- The "Новий документ" dialog keeps the kind on its own row and the two optional fields in a pair,
+  so nothing leaves the dialog at its width.
+- The plan editor is one `DetailSheet` from the first paint: `usePlanForm` derives the draft from the
+  loaded plan until the first edit, so the sheet mounts before the plan arrives and the loader sits
+  inside it (`plan-editor.test.tsx` asserts the dialog node survives the load). The earlier version
+  mounted a loading sheet and then a second sheet with the form, which read as a double opening.
+- The card footer groups its actions: passport and state, then the response (emergency or release),
+  then archiving (`SheetActionGroups`). The passport action is named "Редагувати паспорт".
+- The "Материалы" tab explains that items are edited in their plan and a row opens that plan.
+- The material card gives the unit its own width (7rem) and the need column 10rem.
+- Free text everywhere renders through `shared/ui/rich-text.tsx`: blank lines make paragraphs, single
+  breaks stay, "-" and "1." lines become lists, addresses become links that open in a new tab and
+  keep sentence punctuation outside. `ScrollableText`, the machine notes, work and repair comments,
+  incident, request, operation, communication, questionnaire and compensation texts use it; audit
+  JSON and checklist labels keep their own rendering.
+- Production data: the catalogue is attached as a link document to the three machines and their
+  notes were rewritten with paragraphs and lists. Published plan versions are immutable in the
+  database (`maintenance_version_immutable`), so the plans' source notes keep their single-paragraph
+  text until someone edits and publishes a plan; the link inside them is clickable anyway.
+
 ## Verification
 
 2026-09-24, branch `claude/busy-mayer-6jmcpk`, local PostgreSQL 16, Redis 7.
@@ -209,6 +231,11 @@ PostgreSQL; the local journey above was repeated on the rebuilt API for the new 
 five days early created 1007 on the following interval). Production: the owner's Telegram is linked
 to a QA mechanic employee and that employee is the responsible mechanic of the three NEWTOP machines
 for the owner's own bot test, with the original mechanic as backup; both are to be reverted after it.
+
+2026-09-25, second review: admin-web 93 files / 592 tests pass (rich text, single-sheet editor),
+repo-wide lint and format check pass; Playwright screenshots at 1440×900 and 390×844 of the document
+dialog, the materials tab with the grouped footer, the plan editor opened from a material row (one
+dialog node throughout the load) and the passport notes with paragraphs, a list and a link.
 
 ## Remaining work
 

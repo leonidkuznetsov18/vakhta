@@ -52,6 +52,7 @@ import { RepairBody, RepairMeta } from './repair-body';
 import { ChangeDialog, ReassignDialog, ReplanDialog } from './work-change-dialogs';
 import { WorkDeliveries } from './work-deliveries';
 import { WorkField } from './work-field';
+import { RichText } from '@/shared/ui/rich-text';
 
 const RESULT_VIEW: Readonly<Record<OperationResult, { tone: PillTone; icon: ReactNode }>> = {
   DONE: { tone: 'success', icon: <CircleCheckIcon /> },
@@ -137,7 +138,7 @@ function Materials({ work }: { readonly work: WorkDetail }) {
     return (
       <section className="flex flex-col gap-1">
         <h3 className="font-medium">{t.used}</h3>
-        <p className="text-sm whitespace-pre-line break-words">{work.partsUsed}</p>
+        <RichText text={work.partsUsed} className="text-sm" />
       </section>
     );
   if (!work.materials.length) return null;
@@ -172,9 +173,7 @@ function ReviewHistory({ work }: { readonly work: WorkDetail }) {
             {' '}
             · {review.reviewer} · {formatDateTime(review.reviewedAt)}
           </span>
-          {review.comment ? (
-            <p className="whitespace-pre-line break-words">{review.comment}</p>
-          ) : null}
+          {review.comment ? <RichText text={review.comment} /> : null}
         </li>
       ))}
     </ul>

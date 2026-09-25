@@ -36,6 +36,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { EyeIcon } from 'lucide-react';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { useNavigate, useParams } from '@tanstack/react-router';
+import { RichText } from '@/shared/ui/rich-text';
 
 const all = messages(currentLocale());
 const r = all.admin.requests;
@@ -451,7 +452,7 @@ export function RequestsPage() {
                     ? all.requests.approvedShort
                     : all.requests.rejectedShort}
                   <Muted>{` · ${d.actingRole ?? d.actorType}`}</Muted>
-                  <p className="whitespace-pre-wrap">{d.comment}</p>
+                  <RichText text={d.comment} />
                 </li>
               ))}
             </ul>

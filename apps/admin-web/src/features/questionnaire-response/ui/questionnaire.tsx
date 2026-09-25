@@ -13,6 +13,7 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
 import { LoadingState } from '@/shared/ui/loading-state';
 import { questionnaireApi, createResponseDraft } from '../model/response';
+import { RichText } from '@/shared/ui/rich-text';
 function errorText(error: unknown) {
   const t = messages(currentLocale()).communications;
   if (!error) return null;
@@ -110,9 +111,10 @@ function ResponseForm({ view, launch }: { view: QuestionnaireView; launch: strin
           {view.definition.title}
         </h1>
         {view.introduction && (
-          <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-sm text-muted-foreground">
-            {view.introduction}
-          </p>
+          <RichText
+            text={view.introduction}
+            className="max-h-48 overflow-y-auto text-sm text-muted-foreground"
+          />
         )}
         <p className="text-sm text-muted-foreground">
           {format(t.namedNotice, { sender: view.sender })}
@@ -277,8 +279,8 @@ function AnswerReview({
         return (
           <div key={question.id}>
             <dt className="font-medium">{question.prompt}</dt>
-            <dd className="mt-1 max-h-52 overflow-y-auto whitespace-pre-wrap break-words text-sm text-muted-foreground">
-              {value}
+            <dd className="mt-1 max-h-52 overflow-y-auto text-sm text-muted-foreground">
+              <RichText text={value} />
             </dd>
           </div>
         );

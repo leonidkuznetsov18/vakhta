@@ -21,6 +21,7 @@ import { useCommunicationDraft } from '../model/context';
 import { choiceResults } from '../model/results';
 import { communicationError } from '../model/feedback';
 import type { CommunicationDetail } from '@vakhta/contracts';
+import { RichText } from '@/shared/ui/rich-text';
 const tones = {
   PENDING: 'text-slate-600 dark:text-slate-300',
   SENDING: 'text-blue-700 dark:text-blue-300',
@@ -167,9 +168,7 @@ function DeliveryDetail({ detail }: { detail: CommunicationDetail }) {
         <p className="text-xs text-muted-foreground">
           {new Date(detail.createdAt).toLocaleString(currentLocale())}
         </p>
-        <p className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-sm">
-          {detail.text}
-        </p>
+        <RichText text={detail.text} className="max-h-64 overflow-y-auto text-sm" />
       </div>
       {detail.attachments.length > 0 && (
         <ul className="space-y-2">
@@ -314,9 +313,10 @@ function DeliveryDetail({ detail }: { detail: CommunicationDetail }) {
                   return (
                     <div key={question.id} className="border-t pt-2 text-sm">
                       <p className="font-medium">{question.prompt}</p>
-                      <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-muted-foreground">
-                        {value}
-                      </p>
+                      <RichText
+                        text={value}
+                        className="max-h-48 overflow-y-auto text-muted-foreground"
+                      />
                     </div>
                   );
                 })}

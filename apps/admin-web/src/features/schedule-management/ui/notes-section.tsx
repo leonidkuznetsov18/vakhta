@@ -16,6 +16,7 @@ import { recordedTime } from '../lib/labels';
 import type { Workspace } from '../model/use-workspace';
 import { notesFor, type Notes } from '../model/use-notes';
 import { employeeLabel } from './assignment-changes';
+import { RichText } from '@/shared/ui/rich-text';
 
 const t = messages(currentLocale()).scheduleWorkspace;
 const APPROVERS = ['ADMIN', 'PRODUCTION_HEAD'];
@@ -93,7 +94,7 @@ export function NotesSection({
             {note.text.length > LONG ? (
               <ScrollableText label={t.noteText} text={note.text} />
             ) : (
-              <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{note.text}</p>
+              <RichText text={note.text} />
             )}
           </li>
         ))}

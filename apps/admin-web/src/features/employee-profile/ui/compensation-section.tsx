@@ -21,6 +21,7 @@ import {
 import { InfoTip } from '@/components/app/info-tip';
 import { profileApi, refreshProfiles } from '../model/api';
 import { profileError } from '../model/editor';
+import { RichText } from '@/shared/ui/rich-text';
 
 export function CompensationSection({ profile }: { profile: EmployeeProfileView }) {
   const t = messages(currentLocale()).employeeProfile;
@@ -81,9 +82,7 @@ export function CompensationSection({ profile }: { profile: EmployeeProfileView 
               </div>
               <CompensationValues entry={entry} />
               {entry.reason && (
-                <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-sm">
-                  {entry.reason}
-                </p>
+                <RichText text={entry.reason} className="max-h-32 overflow-y-auto text-sm" />
               )}
             </li>
           ))}
