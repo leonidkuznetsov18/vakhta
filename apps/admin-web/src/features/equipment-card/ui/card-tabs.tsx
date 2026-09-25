@@ -6,8 +6,8 @@ import {
   FileTextIcon,
   LinkIcon,
   PlusIcon,
+  Trash2Icon,
   TriangleAlertIcon,
-  Unlink2Icon,
 } from 'lucide-react';
 import type {
   EquipmentDetail,
@@ -106,7 +106,7 @@ function DocumentItem({
           </span>
         </span>
       </span>
-      <span className="flex gap-2">
+      <span className="flex items-center gap-2">
         <IconButton
           icon={ExternalLinkIcon}
           label={t.documents.open}
@@ -117,10 +117,10 @@ function DocumentItem({
         />
         {canManage ? (
           <IconButton
-            icon={Unlink2Icon}
+            icon={Trash2Icon}
             label={t.documents.unlink}
             tooltip={t.documents.unlinkHint}
-            size="sm"
+            size="icon-sm"
             variant="ghost"
             pending={busy}
             onClick={onUnlink}
