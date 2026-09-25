@@ -1,3 +1,9 @@
+## [1.35.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.35.0...v1.35.1) (2026-09-25)
+
+### Bug fixes
+
+* **admin-web:** open a maintenance plan over the machine card without a flash ([2b2344c](https://github.com/leonidkuznetsov18/vakhta/commit/2b2344c533679bbd30d504e837cd289ec2a67772))
+
 ## [1.35.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.34.0...v1.35.0) (2026-09-25)
 
 ### Features
