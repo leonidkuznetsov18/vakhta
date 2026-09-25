@@ -340,3 +340,43 @@ Mobile (Edge Cases).
 - **D3** The fixed component catalogue (A3): is `SHIFT_RATE` needed for the pilot, and does
   `LEAD_SUPPLEMENT` replace any current practice of paying masters outside the system?
 - **D4** Levels per position (A6) or per pay group (GRP-02 allows both)?
+
+## Owner answers 2026-09-25: pay (questions 19, 21–25)
+
+The owner answered the pay questions of #118. Each answer changes an assumption above; the rest
+stands. Questions 26–40 (groups, levels, approval, one-time payments, month, rollout) stay open.
+
+- **Q21–Q22.** Not answered; the defaults hold: one employer, one currency (UAH), both
+  overridable later without a card redesign.
+- **Q23, kinds of pay, in the owner's priority order:** per shift, per hour, per output
+  (выработка), for plan fulfilment. No monthly salary was named. Change to A3: `SHIFT_RATE` and
+  `HOURLY_RATE` are the primary bases; `BASE_SALARY` stays in the catalogue for administrative
+  positions only; **`PIECE_RATE` (output) and `PLAN_BONUS` need an output or plan fact that the
+  product does not record (AGENTS.md: orders, output and OEE are out of MVP)**, so they are
+  named in the catalogue as reserved and deferred to a separate decision. Open: where output
+  numbers would come from (Q23a) and whether "for plan fulfilment" is the existing points bonus
+  or a separate production plan (Q23b), whether anyone is on a monthly salary (Q23c).
+- **Q24, allowances, primary set:** night, weekends and holidays, extra shifts, level (разряд),
+  seniority (стаж). Change to A3: add `WEEKEND_COEFFICIENT` (applied to shifts on weekends and
+  public holidays from the schedule calendar), `EXTRA_SHIFT_RATE` (shifts above the monthly norm
+  of the schedule), `SENIORITY_SUPPLEMENT` (a scale by years of service from
+  `employments.valid_from`, per pay group), keep `NIGHT_COEFFICIENT` and `LEVEL_SUPPLEMENT`;
+  `LEAD_SUPPLEMENT` stays but is not primary. Add `COMBINATION_SUPPLEMENT` (percent of the base
+  for doing the work of two, spec 014 Q19). Open: weekend as a coefficient or a double rate,
+  extra-shift rate, seniority scale (Q24a).
+- **Q19, several nodes and pay.** No percentage shares: a home node plus a service scope (spec 014) and a dated `COMBINATION_SUPPLEMENT` with a reason. Change to A2: `share` is dropped;
+  `fte` stays for the employment rate; S17 in Edge Cases is replaced by "one assignment, service
+  scope, supplement".
+- **Q25, where the terms live.** Excel, with a typical rate per position. Change to A5 and
+  FR-009: the migration seeds one pay group per position from that sheet (shift and hourly
+  rates, night and weekend coefficients, level and seniority scales) and records each person's
+  deviation from the typical rate as a personal exception with the reason «перенос из таблицы»;
+  the existing compensation entries are reconciled against the same sheet. Open: a copy of the
+  sheet without names for the import design (Q25a).
+- **Month preview (AC-003).** Because the bases are per shift and per hour, the preview is
+  computed from the month's planned shifts and their attributes (night, weekend, above norm)
+  rather than from planned hours alone; `monthPreview` takes the shift list.
+
+Follow-up questions: Q23a source of output numbers; Q23b plan bonus vs the existing points
+bonus; Q23c monthly salary for anyone; Q24a weekend coefficient or double rate, extra-shift
+rate, seniority scale; Q25a the rates sheet without names.

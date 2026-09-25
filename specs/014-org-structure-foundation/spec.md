@@ -478,3 +478,33 @@ Follow-up questions for the owner, in the same dry form:
   and in sequence or in parallel?
 - Q15a. May a head change their subtree without HR confirmation, or does HR confirm afterwards?
 - Q5 remains unanswered: how often the structure changes.
+
+## Owner answers 2026-09-25: moving people (questions 16–20)
+
+- **Q16–Q17, how moves happen today.** Orally, and often learnt a week later. Change: the dated
+  move must be the lightest action in the section (one popover, today by default), and a
+  back-dated move is a normal case with a visible trail and recalculation of the facts that
+  depend on placement (AC-014's floor "not earlier than the current row" stays; a move before
+  that needs the previous row corrected first).
+- **Q18, planned moves.** Yes: in high season loaded sections are reinforced from others. Change:
+  future-dated moves (`SCHEDULED`) are first-class, and a move may carry an end date after which
+  the person returns to the home node (a seasonal reinforcement); the people table shows
+  «до 30.11» on such rows. Open: whether the return is automatic (Q18a).
+- **Q19, one person on several nodes.** Yes, by position: a cleaner serves every shop, a mechanic
+  or setter serves one shop or several processes, and one setter may cover three shops to save
+  money. Pay is **not** split by percentages: when a section needs two people for a process and
+  one does the work of two, they get +25 % on their current rate. Change: an assignment has one
+  home node plus an optional **service scope** (a list of nodes the person serves), used by
+  handover, incidents and the schedule; the addendum's TREE-04 shares are dropped for this
+  tenant; the extra load is a dated supplement component in spec 015 (`COMBINATION_SUPPLEMENT`,
+  percent of the base, with reason and period). Open: home node of a multi-shop mechanic
+  (Q19a), who decides the +25 % and for how long (Q19b), whether staffing norms per node exist
+  so the section can show under-staffing (Q19c).
+- **Q20, people without a node.** Interns and administration; everyone else has a node. Change:
+  administration becomes a division node («Администрация») so that only interns remain in the
+  pool, and the pool row reads «Стажёры и без подразделения». Open: whether an intern is attached
+  to a section for training (Q20a).
+
+Follow-up questions: Q18a return after a seasonal move automatic or decided; Q19a home node for a
+mechanic on three shops; Q19b who approves +25 % and for what period; Q19c written staffing norms
+per section and process; Q20a interns attached to a training section or not.
